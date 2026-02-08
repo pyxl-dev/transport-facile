@@ -1,3 +1,8 @@
+import {
+  fetchWithRetry,
+  type FetchWithRetryOptions,
+} from '../utils/fetch-with-retry.js'
+
 interface OverpassGeometryPoint {
   readonly lat: number
   readonly lon: number
@@ -196,22 +201,19 @@ export function parseOverpassRelations(
   return result
 }
 
-export async function fetchOverpassRoutes(): Promise<
-  ReadonlyMap<string, Coordinates>
-> {
+export async function fetchOverpassRoutes(
+  retryOptions?: Partial<FetchWithRetryOptions>
+): Promise<ReadonlyMap<string, Coordinates>> {
   try {
-    const response = await fetch(OVERPASS_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `data=${encodeURIComponent(OVERPASS_QUERY)}`,
-    })
-
-    if (!response.ok) {
-      console.warn(
-        `Overpass API returned ${response.status}: ${response.statusText}`
-      )
-      return new Map()
-    }
+    const response = await fetchWithRetry(
+      OVERPASS_URL,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `data=${encodeURIComponent(OVERPASS_QUERY)}`,
+      },
+      retryOptions
+    )
 
     const data = (await response.json()) as OverpassResponse
     return parseOverpassRelations(data)
