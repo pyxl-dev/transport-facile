@@ -533,6 +533,7 @@ describe('matchOverpassRef', () => {
 
 describe('fetchOverpassRoutes', () => {
   const originalFetch = globalThis.fetch
+  const noRetry = { retries: 0, initialDelayMs: 1 }
 
   beforeEach(() => {
     vi.spyOn(console, 'warn').mockImplementation(() => {})
@@ -561,7 +562,7 @@ describe('fetchOverpassRoutes', () => {
         }),
     })
 
-    const result = await fetchOverpassRoutes()
+    const result = await fetchOverpassRoutes(noRetry)
 
     expect(result.size).toBe(1)
     expect(result.get('1')).toBeDefined()
@@ -574,7 +575,7 @@ describe('fetchOverpassRoutes', () => {
       statusText: 'Too Many Requests',
     })
 
-    const result = await fetchOverpassRoutes()
+    const result = await fetchOverpassRoutes(noRetry)
 
     expect(result.size).toBe(0)
   })
@@ -582,7 +583,7 @@ describe('fetchOverpassRoutes', () => {
   it('should return empty map on network error', async () => {
     globalThis.fetch = vi.fn().mockRejectedValue(new Error('Network error'))
 
-    const result = await fetchOverpassRoutes()
+    const result = await fetchOverpassRoutes(noRetry)
 
     expect(result.size).toBe(0)
   })
@@ -593,14 +594,46 @@ describe('fetchOverpassRoutes', () => {
       json: () => Promise.resolve({ elements: [] }),
     })
 
-    await fetchOverpassRoutes()
+    await fetchOverpassRoutes(noRetry)
 
     expect(globalThis.fetch).toHaveBeenCalledWith(
       'https://overpass-api.de/api/interpreter',
       expect.objectContaining({
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        signal: expect.any(AbortSignal),
       })
     )
+  })
+
+  it('should recover after transient 504 failure', async () => {
+    globalThis.fetch = vi.fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 504,
+        statusText: 'Gateway Timeout',
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            elements: [
+              createRelation('T1', [
+                {
+                  geometry: [
+                    { lat: 43.6, lon: 3.87 },
+                    { lat: 43.61, lon: 3.88 },
+                  ],
+                },
+              ]),
+            ],
+          }),
+      })
+
+    const result = await fetchOverpassRoutes({ retries: 2, initialDelayMs: 1 })
+
+    expect(result.size).toBe(1)
+    expect(result.get('T1')).toBeDefined()
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2)
   })
 })
