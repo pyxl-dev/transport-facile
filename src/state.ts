@@ -1,9 +1,10 @@
-import type { AppState, Vehicle, LineInfo, Stop } from './types'
+import type { AppState, Vehicle, LineInfo, Stop, RoutePath } from './types'
 
 const initialState: AppState = {
   vehicles: [],
   lines: [],
   stops: [],
+  routePaths: [],
   selectedLines: new Set<string>(),
   isLoading: false,
   lastUpdated: null,
@@ -78,9 +79,22 @@ export function clearLineFilter(): (state: AppState) => AppState {
   return (state) => ({ ...state, selectedLines: new Set<string>() })
 }
 
+export function setRoutePaths(
+  routePaths: readonly RoutePath[]
+): (state: AppState) => AppState {
+  return (state) => ({ ...state, routePaths })
+}
+
 export function getFilteredVehicles(state: AppState): readonly Vehicle[] {
   if (state.selectedLines.size === 0) {
     return state.vehicles
   }
   return state.vehicles.filter((v) => state.selectedLines.has(v.line.id))
+}
+
+export function getFilteredRoutePaths(state: AppState): readonly RoutePath[] {
+  if (state.selectedLines.size === 0) {
+    return state.routePaths
+  }
+  return state.routePaths.filter((rp) => state.selectedLines.has(rp.routeId))
 }

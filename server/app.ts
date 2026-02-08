@@ -1,12 +1,17 @@
 import express, { type Express, type Request, type Response, type NextFunction } from 'express'
 import cors from 'cors'
-import type { GtfsStaticData, ApiResponse } from '../src/types.js'
+import type { GtfsStaticData, ApiResponse, RoutePath } from '../src/types.js'
 import type { Config } from './config.js'
 import { vehiclesRouter } from './routes/vehicles.js'
 import { linesRouter } from './routes/lines.js'
 import { stopsRouter } from './routes/stops.js'
+import { routePathsRouter } from './routes/route-paths.js'
 
-export function createApp(staticData: GtfsStaticData, config: Config): Express {
+export function createApp(
+  staticData: GtfsStaticData,
+  config: Config,
+  routePaths?: readonly RoutePath[]
+): Express {
   const app = express()
 
   app.use(cors())
@@ -14,10 +19,12 @@ export function createApp(staticData: GtfsStaticData, config: Config): Express {
 
   app.locals.staticData = staticData
   app.locals.config = config
+  app.locals.routePaths = routePaths ?? []
 
   app.use('/api/vehicles', vehiclesRouter)
   app.use('/api/lines', linesRouter)
   app.use('/api/stops', stopsRouter)
+  app.use('/api/route-paths', routePathsRouter)
 
   app.use(
     (err: Error, _req: Request, res: Response<ApiResponse<never>>, _next: NextFunction) => {
