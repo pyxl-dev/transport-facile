@@ -10,6 +10,7 @@ interface MarkerEntry {
 }
 
 let markers = new Map<string, MarkerEntry>()
+let activePopup: maplibregl.Popup | null = null
 
 export function initVehicleMarkers(_map: maplibregl.Map): void {
   markers = new Map()
@@ -56,7 +57,9 @@ export function updateVehicleMarkers(
         .setLngLat([vehicle.position.lng, vehicle.position.lat])
         .addTo(map)
 
-      additions.set(vehicle.vehicleId, { marker, markerElement, vehicle })
+      const entry: MarkerEntry = { marker, markerElement, vehicle }
+      attachPopupHandler(map, entry)
+      additions.set(vehicle.vehicleId, entry)
       changed = true
     }
   }
@@ -66,18 +69,13 @@ export function updateVehicleMarkers(
   }
 }
 
-export function setupVehicleMarkerPopups(map: maplibregl.Map): void {
-  map.getCanvas().addEventListener('click', (e) => {
-    const target = e.target as HTMLElement
-    const markerEl = target.closest('.vehicle-marker') as HTMLElement | null
-    if (!markerEl) {
-      return
-    }
+export function setupVehicleMarkerPopups(_map: maplibregl.Map): void {
+  // Popups are now attached per-marker in attachPopupHandler
+}
 
-    const entry = findEntryByElement(markerEl)
-    if (!entry) {
-      return
-    }
+function attachPopupHandler(map: maplibregl.Map, entry: MarkerEntry): void {
+  entry.markerElement.element.addEventListener('click', (e) => {
+    e.stopPropagation()
 
     const { vehicle } = entry
 
@@ -89,18 +87,17 @@ export function setupVehicleMarkerPopups(map: maplibregl.Map): void {
       vehicleId: vehicle.vehicleId,
     })
 
-    new maplibregl.Popup({ offset: 20 })
+    if (activePopup) {
+      activePopup.remove()
+    }
+
+    activePopup = new maplibregl.Popup({ offset: 20 })
       .setLngLat([vehicle.position.lng, vehicle.position.lat])
       .setHTML(popupContent)
       .addTo(map)
-  })
-}
 
-function findEntryByElement(el: HTMLElement): MarkerEntry | undefined {
-  for (const entry of markers.values()) {
-    if (entry.markerElement.element === el) {
-      return entry
-    }
-  }
-  return undefined
+    activePopup.on('close', () => {
+      activePopup = null
+    })
+  })
 }
