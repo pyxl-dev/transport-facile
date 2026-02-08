@@ -38,8 +38,14 @@ interface OverpassResponse {
 }
 
 const OVERPASS_URL = 'https://overpass-api.de/api/interpreter'
-const OVERPASS_QUERY =
-  '[out:json];relation["type"="route"]["route"="tram"](43.5,3.7,43.7,4.05); out body geom;'
+const OVERPASS_QUERY = [
+  '[out:json];',
+  '(',
+  'relation["type"="route"]["route"="tram"](43.5,3.7,43.7,4.05);',
+  'relation["type"="route"]["route"="bus"]["network"="TaM"](43.5,3.7,43.7,4.05);',
+  ');',
+  'out body geom;',
+].join('')
 
 type Coordinates = readonly (readonly [number, number])[]
 
@@ -47,11 +53,15 @@ function toCoord(p: OverpassGeometryPoint): readonly [number, number] {
   return [p.lon, p.lat] as const
 }
 
-function pointsEqual(
+// ~5m tolerance at Montpellier latitude (43.6°)
+const NEAR_THRESHOLD = 0.0001
+
+function pointsNear(
   a: readonly [number, number],
   b: readonly [number, number]
 ): boolean {
-  return a[0] === b[0] && a[1] === b[1]
+  return Math.abs(a[0] - b[0]) < NEAR_THRESHOLD &&
+    Math.abs(a[1] - b[1]) < NEAR_THRESHOLD
 }
 
 function deduplicateConsecutivePoints(
@@ -66,12 +76,30 @@ function deduplicateConsecutivePoints(
   for (let i = 1; i < points.length; i++) {
     const prev = result[result.length - 1]
     const curr = points[i]
-    if (!pointsEqual(prev, curr)) {
+    if (!pointsNear(prev, curr)) {
       result.push(curr)
     }
   }
 
   return result
+}
+
+function appendWayForward(
+  chain: (readonly [number, number])[],
+  wayCoords: readonly (readonly [number, number])[]
+): void {
+  for (let j = 1; j < wayCoords.length; j++) {
+    chain.push(wayCoords[j])
+  }
+}
+
+function appendWayReversed(
+  chain: (readonly [number, number])[],
+  wayCoords: readonly (readonly [number, number])[]
+): void {
+  for (let j = wayCoords.length - 2; j >= 0; j--) {
+    chain.push(wayCoords[j])
+  }
 }
 
 export function chainWayGeometries(
@@ -88,6 +116,24 @@ export function chainWayGeometries(
 
   const chain: (readonly [number, number])[] = [...firstWay]
 
+  // Detect if first way needs reversing by looking ahead at way[1]
+  if (wayMembers.length >= 2) {
+    const nextCoords = wayMembers[1].geometry.map(toCoord)
+    if (nextCoords.length > 0) {
+      const chainEnd = chain[chain.length - 1]
+      const chainStart = chain[0]
+      const nextStart = nextCoords[0]
+      const nextEnd = nextCoords[nextCoords.length - 1]
+
+      const endConnects = pointsNear(chainEnd, nextStart) || pointsNear(chainEnd, nextEnd)
+      const startConnects = pointsNear(chainStart, nextStart) || pointsNear(chainStart, nextEnd)
+
+      if (!endConnects && startConnects) {
+        chain.reverse()
+      }
+    }
+  }
+
   for (let i = 1; i < wayMembers.length; i++) {
     const wayCoords = wayMembers[i].geometry.map(toCoord)
     if (wayCoords.length === 0) {
@@ -98,21 +144,13 @@ export function chainWayGeometries(
     const wayStart = wayCoords[0]
     const wayEnd = wayCoords[wayCoords.length - 1]
 
-    if (pointsEqual(chainEnd, wayStart)) {
-      // Way follows naturally: chain→[A,B,C] + way→[C,D,E] → skip first
-      for (let j = 1; j < wayCoords.length; j++) {
-        chain.push(wayCoords[j])
-      }
-    } else if (pointsEqual(chainEnd, wayEnd)) {
-      // Way is reversed: chain→[A,B,C] + way→[E,D,C] → reverse, skip first
-      for (let j = wayCoords.length - 2; j >= 0; j--) {
-        chain.push(wayCoords[j])
-      }
+    if (pointsNear(chainEnd, wayStart)) {
+      appendWayForward(chain, wayCoords)
+    } else if (pointsNear(chainEnd, wayEnd)) {
+      appendWayReversed(chain, wayCoords)
     } else {
-      // Gap between ways — append all points (with dedup later)
-      for (const coord of wayCoords) {
-        chain.push(coord)
-      }
+      // Gap: skip this way to avoid straight-line artifacts
+      continue
     }
   }
 
@@ -158,7 +196,7 @@ export function parseOverpassRelations(
   return result
 }
 
-export async function fetchOverpassTramRoutes(): Promise<
+export async function fetchOverpassRoutes(): Promise<
   ReadonlyMap<string, Coordinates>
 > {
   try {
@@ -178,7 +216,7 @@ export async function fetchOverpassTramRoutes(): Promise<
     const data = (await response.json()) as OverpassResponse
     return parseOverpassRelations(data)
   } catch (error) {
-    console.warn('Failed to fetch Overpass tram routes:', error)
+    console.warn('Failed to fetch Overpass routes:', error)
     return new Map()
   }
 }

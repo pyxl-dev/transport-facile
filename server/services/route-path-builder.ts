@@ -95,36 +95,31 @@ export function buildRoutePaths(
   for (const route of staticData.routes.values()) {
     let coordinates: readonly (readonly [number, number])[] | undefined
 
-    // Priority 1: Overpass (precise OSM geometry for tram lines only)
-    if (overpassPaths && route.type === 0) {
+    const bestTrip = findBestTripForRoute(
+      route.routeId,
+      staticData.trips,
+      stopTimesByTrip
+    )
+
+    // Priority 1: GTFS shapes (trip-specific, most accurate when available)
+    if (bestTrip?.shapeId) {
+      const shapePoints = shapes.get(bestTrip.shapeId)
+      if (shapePoints && shapePoints.length > 0) {
+        coordinates = buildPathFromShape(shapePoints)
+      }
+    }
+
+    // Priority 2: Overpass OSM geometry (tram + TaM bus routes)
+    if (!coordinates && overpassPaths) {
       const overpassMatch = matchOverpassRef(route.shortName, overpassPaths)
       if (overpassMatch && overpassMatch.length >= 2) {
         coordinates = overpassMatch
       }
     }
 
-    // Priority 2 & 3: GTFS shapes or stop sequences
-    if (!coordinates) {
-      const bestTrip = findBestTripForRoute(
-        route.routeId,
-        staticData.trips,
-        stopTimesByTrip
-      )
-
-      if (!bestTrip) {
-        continue
-      }
-
-      if (bestTrip.shapeId) {
-        const shapePoints = shapes.get(bestTrip.shapeId)
-        if (shapePoints && shapePoints.length > 0) {
-          coordinates = buildPathFromShape(shapePoints)
-        } else {
-          coordinates = buildFromStops(bestTrip.tripId, stopTimesByTrip, staticData)
-        }
-      } else {
-        coordinates = buildFromStops(bestTrip.tripId, stopTimesByTrip, staticData)
-      }
+    // Priority 3: Stop sequences (straight lines, last resort)
+    if (!coordinates && bestTrip) {
+      coordinates = buildFromStops(bestTrip.tripId, stopTimesByTrip, staticData)
     }
 
     if (!coordinates || coordinates.length < 2) {

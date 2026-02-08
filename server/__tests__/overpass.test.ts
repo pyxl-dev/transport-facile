@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
   parseOverpassRelations,
   chainWayGeometries,
-  fetchOverpassTramRoutes,
+  fetchOverpassRoutes,
   matchOverpassRef,
 } from '../services/overpass.js'
 
@@ -332,7 +332,7 @@ describe('chainWayGeometries', () => {
     expect(result).toEqual([])
   })
 
-  it('should handle gap between ways (no matching endpoints)', () => {
+  it('should skip ways with gaps to avoid straight-line artifacts', () => {
     const ways = [
       way([
         { lat: 43.60, lon: 3.87 },
@@ -346,12 +346,88 @@ describe('chainWayGeometries', () => {
 
     const result = chainWayGeometries(ways)
 
+    // Gap way is skipped, only the first way remains
     expect(result).toEqual([
       [3.87, 43.60],
       [3.88, 43.61],
-      [3.95, 43.70],
-      [3.96, 43.71],
     ])
+  })
+
+  it('should reverse the first way when its start connects to way[1]', () => {
+    // way0: B→A (reversed), way1: B→C (normal)
+    // way0.start(B) connects to way1.start(B), way0.end(A) doesn't
+    const ways = [
+      way([
+        { lat: 43.61, lon: 3.88 },
+        { lat: 43.60, lon: 3.87 },
+      ]),
+      way([
+        { lat: 43.61, lon: 3.88 },
+        { lat: 43.62, lon: 3.89 },
+      ]),
+    ]
+
+    const result = chainWayGeometries(ways)
+
+    expect(result).toEqual([
+      [3.87, 43.60],
+      [3.88, 43.61],
+      [3.89, 43.62],
+    ])
+  })
+
+  it('should chain all-reversed ways correctly', () => {
+    // All ways oriented backwards: C→B, B→A, not A→B, B→C
+    // way0: C→B, way1: B→A
+    // way0.start(C) matches way1.end(A)? No. way0.start(C) matches way1.start(B)? No.
+    // way0.end(B) matches way1.start(B)? Yes... but then we go B→A which is forward
+    // Actually: way0: C→B, way1: D→C
+    // way0.end(B) doesn't match way1.start(D) or way1.end(C)
+    // way0.start(C) matches way1.end(C) → reverse way0 to B→C, then way1.end matches → reverse way1 to C→D
+    const ways = [
+      way([
+        { lat: 43.62, lon: 3.89 },
+        { lat: 43.61, lon: 3.88 },
+      ]),
+      way([
+        { lat: 43.63, lon: 3.90 },
+        { lat: 43.62, lon: 3.89 },
+      ]),
+      way([
+        { lat: 43.64, lon: 3.91 },
+        { lat: 43.63, lon: 3.90 },
+      ]),
+    ]
+
+    const result = chainWayGeometries(ways)
+
+    expect(result).toEqual([
+      [3.88, 43.61],
+      [3.89, 43.62],
+      [3.90, 43.63],
+      [3.91, 43.64],
+    ])
+  })
+
+  it('should handle near-equal points within tolerance (~5m)', () => {
+    // Points differ by ~1m (< 5m threshold)
+    const ways = [
+      way([
+        { lat: 43.60, lon: 3.87 },
+        { lat: 43.61, lon: 3.88 },
+      ]),
+      way([
+        { lat: 43.610005, lon: 3.880005 },
+        { lat: 43.62, lon: 3.89 },
+      ]),
+    ]
+
+    const result = chainWayGeometries(ways)
+
+    // Should chain (near match), not create a gap
+    expect(result.length).toBeGreaterThanOrEqual(2)
+    expect(result[0]).toEqual([3.87, 43.60])
+    expect(result[result.length - 1]).toEqual([3.89, 43.62])
   })
 })
 
@@ -455,7 +531,7 @@ describe('matchOverpassRef', () => {
   })
 })
 
-describe('fetchOverpassTramRoutes', () => {
+describe('fetchOverpassRoutes', () => {
   const originalFetch = globalThis.fetch
 
   beforeEach(() => {
@@ -485,7 +561,7 @@ describe('fetchOverpassTramRoutes', () => {
         }),
     })
 
-    const result = await fetchOverpassTramRoutes()
+    const result = await fetchOverpassRoutes()
 
     expect(result.size).toBe(1)
     expect(result.get('1')).toBeDefined()
@@ -498,7 +574,7 @@ describe('fetchOverpassTramRoutes', () => {
       statusText: 'Too Many Requests',
     })
 
-    const result = await fetchOverpassTramRoutes()
+    const result = await fetchOverpassRoutes()
 
     expect(result.size).toBe(0)
   })
@@ -506,7 +582,7 @@ describe('fetchOverpassTramRoutes', () => {
   it('should return empty map on network error', async () => {
     globalThis.fetch = vi.fn().mockRejectedValue(new Error('Network error'))
 
-    const result = await fetchOverpassTramRoutes()
+    const result = await fetchOverpassRoutes()
 
     expect(result.size).toBe(0)
   })
@@ -517,7 +593,7 @@ describe('fetchOverpassTramRoutes', () => {
       json: () => Promise.resolve({ elements: [] }),
     })
 
-    await fetchOverpassTramRoutes()
+    await fetchOverpassRoutes()
 
     expect(globalThis.fetch).toHaveBeenCalledWith(
       'https://overpass-api.de/api/interpreter',
