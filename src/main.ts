@@ -17,6 +17,8 @@ import { fetchVehicles, fetchLines, fetchStops, fetchRoutePaths } from './servic
 import { createPollingService } from './services/polling'
 import { createFilterPanel } from './ui/filter-panel'
 import { createLoadingIndicator } from './ui/loading'
+import { createRefreshTimer } from './ui/refresh-timer'
+import { POLLING_INTERVAL } from './config'
 
 function init(): void {
   const store = createStore()
@@ -30,6 +32,7 @@ function init(): void {
   }
 
   const loading = createLoadingIndicator(loadingContainer)
+  const refreshTimer = createRefreshTimer(loadingContainer, POLLING_INTERVAL)
 
   map.on('load', () => {
     initRouteLayer(map)
@@ -54,6 +57,7 @@ function init(): void {
       try {
         const vehicles = await fetchVehicles()
         store.setState(setVehicles(vehicles))
+        refreshTimer.reset()
       } catch (_error) {
         // Will retry on next polling interval
       } finally {
