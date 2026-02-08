@@ -1,3 +1,5 @@
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import express, { type Express, type Request, type Response, type NextFunction } from 'express'
 import cors from 'cors'
 import type { GtfsStaticData, ApiResponse, RoutePath } from '../src/types.js'
@@ -6,6 +8,9 @@ import { vehiclesRouter } from './routes/vehicles.js'
 import { linesRouter } from './routes/lines.js'
 import { stopsRouter } from './routes/stops.js'
 import { routePathsRouter } from './routes/route-paths.js'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const STATIC_DIR = path.join(__dirname, '..', 'dist')
 
 export function createApp(
   staticData: GtfsStaticData,
@@ -25,6 +30,15 @@ export function createApp(
   app.use('/api/lines', linesRouter)
   app.use('/api/stops', stopsRouter)
   app.use('/api/route-paths', routePathsRouter)
+
+  app.use(express.static(STATIC_DIR))
+  app.get('*', (_req, res, next) => {
+    if (_req.path.startsWith('/api')) {
+      next()
+      return
+    }
+    res.sendFile(path.join(STATIC_DIR, 'index.html'))
+  })
 
   app.use(
     (err: Error, _req: Request, res: Response<ApiResponse<never>>, _next: NextFunction) => {
