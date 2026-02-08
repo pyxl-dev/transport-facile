@@ -238,7 +238,7 @@ describe('buildRoutePaths', () => {
       expect(paths[0].coordinates[0]).toEqual([3.870, 43.600])
     })
 
-    it('should prefer Overpass paths over GTFS shapes', () => {
+    it('should prefer GTFS shapes over Overpass when shapes available', () => {
       const staticData = createStaticData({
         trips: new Map([
           ['TR1', { tripId: 'TR1', routeId: 'R1', headsign: 'Mosson', directionId: '0', shapeId: 'SH1' }],
@@ -260,7 +260,8 @@ describe('buildRoutePaths', () => {
       const paths = buildRoutePaths(staticData, stopTimes, shapes, overpassPaths)
 
       expect(paths).toHaveLength(1)
-      expect(paths[0].coordinates).toHaveLength(4)
+      // shapes have 2 points, Overpass has 4 — shapes should win
+      expect(paths[0].coordinates).toHaveLength(2)
     })
 
     it('should match "T1" shortName to Overpass ref "1"', () => {
@@ -326,9 +327,9 @@ describe('buildRoutePaths', () => {
       ])
     })
 
-    it('should NOT apply Overpass to bus routes even if shortName matches', () => {
+    it('should apply Overpass to bus routes without shapes', () => {
       const busOverpass = new Map<string, readonly (readonly [number, number])[]>([
-        ['1', [
+        ['6', [
           [3.870, 43.600],
           [3.872, 43.602],
           [3.875, 43.605],
@@ -337,7 +338,7 @@ describe('buildRoutePaths', () => {
 
       const staticData = createStaticData({
         routes: new Map([
-          ['R1', { routeId: 'R1', shortName: '1', longName: 'Bus 1', type: 3, color: '#FF0000', textColor: '#FFFFFF' }],
+          ['R1', { routeId: 'R1', shortName: '6', longName: 'Bus 6', type: 3, color: '#FF0000', textColor: '#FFFFFF' }],
         ]),
       })
 
@@ -351,11 +352,8 @@ describe('buildRoutePaths', () => {
       const paths = buildRoutePaths(staticData, stopTimes, shapes, busOverpass)
 
       expect(paths).toHaveLength(1)
-      // Should use stop sequence, NOT Overpass tram geometry
-      expect(paths[0].coordinates).toEqual([
-        [3.87, 43.60],
-        [3.88, 43.61],
-      ])
+      // Should use Overpass geometry (3 points), not stop sequence (2 points)
+      expect(paths[0].coordinates).toHaveLength(3)
     })
 
     it('should work with undefined overpassPaths', () => {
