@@ -80,7 +80,13 @@ function init(): void {
       updateStopLayer(map, stops)
     }
 
-    let prevFavorites: ReadonlySet<string> = new Set()
+    const storedFavorites = loadFavorites()
+    if (storedFavorites.size > 0) {
+      store.setState(setFavoriteLines(storedFavorites))
+      store.setState((state) => ({ ...state, selectedLines: new Set(state.favoriteLines) }))
+    }
+
+    let prevFavorites = store.getState().favoriteLines
     store.subscribe((state) => {
       if (state.favoriteLines !== prevFavorites) {
         prevFavorites = state.favoriteLines
@@ -92,11 +98,6 @@ function init(): void {
 
     loadInitialData()
       .then(() => {
-        const storedFavorites = loadFavorites()
-        if (storedFavorites.size > 0) {
-          store.setState(setFavoriteLines(storedFavorites))
-          store.setState((state) => ({ ...state, selectedLines: new Set(state.favoriteLines) }))
-        }
         polling.start()
       })
       .catch(() => {
