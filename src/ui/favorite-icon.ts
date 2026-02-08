@@ -4,17 +4,19 @@ const STAR_FILLED = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="
 export function createFavoriteButton(
   isFavorite: boolean,
   onToggle: () => void
-): HTMLButtonElement {
-  const button = document.createElement('button')
-  button.className = `favorite-star${isFavorite ? ' favorite-star--active' : ''}`
-  button.innerHTML = isFavorite ? STAR_FILLED : STAR_OUTLINE
-  button.setAttribute('aria-label', isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris')
-  button.setAttribute('aria-pressed', String(isFavorite))
+): HTMLSpanElement {
+  const el = document.createElement('span')
+  el.className = `favorite-star${isFavorite ? ' favorite-star--active' : ''}`
+  el.innerHTML = isFavorite ? STAR_FILLED : STAR_OUTLINE
+  el.setAttribute('role', 'button')
+  el.setAttribute('tabindex', '0')
+  el.setAttribute('aria-label', isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris')
+  el.setAttribute('aria-pressed', String(isFavorite))
 
-  button.addEventListener('click', (e) => {
+  el.addEventListener('click', (e) => {
     e.stopPropagation()
     onToggle()
   })
 
-  return button
+  return el
 }
