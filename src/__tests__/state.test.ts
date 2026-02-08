@@ -6,6 +6,9 @@ import {
   setLoading,
   toggleLineFilter,
   clearLineFilter,
+  toggleFavorite,
+  setFavoriteLines,
+  clearFavorites,
   getFilteredVehicles,
 } from '../state'
 import type { Vehicle, LineInfo, Stop } from '../types'
@@ -50,6 +53,7 @@ describe('createStore', () => {
     expect(state.lines).toEqual([])
     expect(state.stops).toEqual([])
     expect(state.selectedLines.size).toBe(0)
+    expect(state.favoriteLines.size).toBe(0)
     expect(state.isLoading).toBe(false)
     expect(state.lastUpdated).toBeNull()
   })
@@ -303,5 +307,85 @@ describe('getFilteredVehicles', () => {
     const result = getFilteredVehicles(store.getState())
 
     expect(result).toHaveLength(0)
+  })
+})
+
+describe('toggleFavorite', () => {
+  it('should add a line to favoriteLines when not present', () => {
+    const store = createStore()
+
+    store.setState(toggleFavorite('T1'))
+
+    expect(store.getState().favoriteLines.has('T1')).toBe(true)
+  })
+
+  it('should remove a line from favoriteLines when already present', () => {
+    const store = createStore()
+
+    store.setState(toggleFavorite('T1'))
+    store.setState(toggleFavorite('T1'))
+
+    expect(store.getState().favoriteLines.has('T1')).toBe(false)
+    expect(store.getState().favoriteLines.size).toBe(0)
+  })
+
+  it('should not mutate the previous Set', () => {
+    const store = createStore()
+    store.setState(toggleFavorite('T1'))
+    const prevFavorites = store.getState().favoriteLines
+
+    store.setState(toggleFavorite('T2'))
+
+    expect(prevFavorites.size).toBe(1)
+    expect(prevFavorites.has('T2')).toBe(false)
+  })
+
+  it('should not affect selectedLines', () => {
+    const store = createStore()
+    store.setState(toggleLineFilter('T1'))
+
+    store.setState(toggleFavorite('T2'))
+
+    const state = store.getState()
+    expect(state.selectedLines.has('T1')).toBe(true)
+    expect(state.selectedLines.has('T2')).toBe(false)
+    expect(state.favoriteLines.has('T2')).toBe(true)
+  })
+})
+
+describe('setFavoriteLines', () => {
+  it('should replace favoriteLines with provided set', () => {
+    const store = createStore()
+    store.setState(toggleFavorite('T1'))
+
+    store.setState(setFavoriteLines(new Set(['T3', 'T4'])))
+
+    const favorites = store.getState().favoriteLines
+    expect(favorites.has('T1')).toBe(false)
+    expect(favorites.has('T3')).toBe(true)
+    expect(favorites.has('T4')).toBe(true)
+    expect(favorites.size).toBe(2)
+  })
+})
+
+describe('clearFavorites', () => {
+  it('should clear all favorite lines', () => {
+    const store = createStore()
+    store.setState(toggleFavorite('T1'))
+    store.setState(toggleFavorite('T2'))
+
+    store.setState(clearFavorites())
+
+    expect(store.getState().favoriteLines.size).toBe(0)
+  })
+
+  it('should produce a new Set instance', () => {
+    const store = createStore()
+    store.setState(toggleFavorite('T1'))
+    const prevFavorites = store.getState().favoriteLines
+
+    store.setState(clearFavorites())
+
+    expect(store.getState().favoriteLines).not.toBe(prevFavorites)
   })
 })

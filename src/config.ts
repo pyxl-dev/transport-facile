@@ -6,6 +6,8 @@ export const API_BASE_URL = '/api'
 
 export const TRAM_LINES = ['T1', 'T2', 'T3', 'T4', 'T5'] as const
 
+export const FAVORITES_STORAGE_KEY = 'tam-favorite-lines'
+
 export const DEFAULT_LINE_COLORS: Record<string, string> = {
   T1: '#005CA9',
   T2: '#EE7F00',
