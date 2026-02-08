@@ -1,4 +1,4 @@
-import { parseRoutes, parseTrips, parseStops, loadGtfsStaticData } from '../services/gtfs-static.js'
+import { parseRoutes, parseTrips, parseStops, parseStopTimes, parseShapes, loadGtfsStaticData } from '../services/gtfs-static.js'
 import type { Config } from '../config.js'
 
 describe('gtfs-static', () => {
@@ -140,6 +140,93 @@ describe('gtfs-static', () => {
     })
   })
 
+  describe('parseStopTimes', () => {
+    it('should parse stop_times CSV into StopTimeEntry array', () => {
+      const csv = [
+        'trip_id,arrival_time,departure_time,stop_id,stop_sequence',
+        'T100,08:00:00,08:01:00,S1,1',
+        'T100,08:05:00,08:06:00,S2,2',
+        'T100,08:10:00,08:11:00,S3,3',
+      ].join('\n')
+
+      const stopTimes = parseStopTimes(csv)
+
+      expect(stopTimes).toHaveLength(3)
+      expect(stopTimes[0]).toEqual({ tripId: 'T100', stopId: 'S1', sequence: 1 })
+      expect(stopTimes[1]).toEqual({ tripId: 'T100', stopId: 'S2', sequence: 2 })
+      expect(stopTimes[2]).toEqual({ tripId: 'T100', stopId: 'S3', sequence: 3 })
+    })
+
+    it('should return empty array for empty CSV', () => {
+      const csv = 'trip_id,arrival_time,departure_time,stop_id,stop_sequence\n'
+
+      const stopTimes = parseStopTimes(csv)
+      expect(stopTimes).toHaveLength(0)
+    })
+  })
+
+  describe('parseShapes', () => {
+    it('should parse shapes CSV into Map grouped by shapeId', () => {
+      const csv = [
+        'shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence',
+        'SH1,43.60,3.87,1',
+        'SH1,43.61,3.88,2',
+        'SH2,43.62,3.89,1',
+      ].join('\n')
+
+      const shapes = parseShapes(csv)
+
+      expect(shapes.size).toBe(2)
+      expect(shapes.get('SH1')).toHaveLength(2)
+      expect(shapes.get('SH2')).toHaveLength(1)
+    })
+
+    it('should sort shape points by sequence', () => {
+      const csv = [
+        'shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence',
+        'SH1,43.62,3.89,3',
+        'SH1,43.60,3.87,1',
+        'SH1,43.61,3.88,2',
+      ].join('\n')
+
+      const shapes = parseShapes(csv)
+      const points = shapes.get('SH1')!
+
+      expect(points[0].sequence).toBe(1)
+      expect(points[1].sequence).toBe(2)
+      expect(points[2].sequence).toBe(3)
+    })
+
+    it('should return empty Map for empty CSV', () => {
+      const csv = 'shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\n'
+
+      const shapes = parseShapes(csv)
+      expect(shapes.size).toBe(0)
+    })
+  })
+
+  describe('parseTrips with shapeId', () => {
+    it('should include shapeId when present', () => {
+      const csv = [
+        'trip_id,route_id,trip_headsign,direction_id,shape_id',
+        'T100,R1,Odysseum,0,SH1',
+      ].join('\n')
+
+      const trips = parseTrips(csv)
+      expect(trips.get('T100')?.shapeId).toBe('SH1')
+    })
+
+    it('should omit shapeId when not present', () => {
+      const csv = [
+        'trip_id,route_id,trip_headsign,direction_id',
+        'T100,R1,Odysseum,0',
+      ].join('\n')
+
+      const trips = parseTrips(csv)
+      expect(trips.get('T100')?.shapeId).toBeUndefined()
+    })
+  })
+
   describe('loadGtfsStaticData', () => {
     it('should download, extract, and merge urban and suburban data', async () => {
       const urbanRoutesCsv = [
@@ -208,19 +295,19 @@ describe('gtfs-static', () => {
           GTFS_REFRESH_INTERVAL: 30000,
         }
 
-        const data = await loadGtfsStaticData(config)
+        const result = await loadGtfsStaticData(config)
 
-        expect(data.routes.size).toBe(2)
-        expect(data.routes.get('R1')?.shortName).toBe('1')
-        expect(data.routes.get('R2')?.shortName).toBe('2')
+        expect(result.staticData.routes.size).toBe(2)
+        expect(result.staticData.routes.get('R1')?.shortName).toBe('1')
+        expect(result.staticData.routes.get('R2')?.shortName).toBe('2')
 
-        expect(data.trips.size).toBe(2)
-        expect(data.trips.get('T1')?.headsign).toBe('Terminus A')
-        expect(data.trips.get('T2')?.headsign).toBe('Terminus B')
+        expect(result.staticData.trips.size).toBe(2)
+        expect(result.staticData.trips.get('T1')?.headsign).toBe('Terminus A')
+        expect(result.staticData.trips.get('T2')?.headsign).toBe('Terminus B')
 
-        expect(data.stops.size).toBe(2)
-        expect(data.stops.get('S1')?.name).toBe('Stop Urban')
-        expect(data.stops.get('S2')?.name).toBe('Stop Suburban')
+        expect(result.staticData.stops.size).toBe(2)
+        expect(result.staticData.stops.get('S1')?.name).toBe('Stop Urban')
+        expect(result.staticData.stops.get('S2')?.name).toBe('Stop Suburban')
       } finally {
         globalThis.fetch = originalFetch
       }
@@ -281,11 +368,11 @@ describe('gtfs-static', () => {
           GTFS_REFRESH_INTERVAL: 30000,
         }
 
-        const data = await loadGtfsStaticData(config)
+        const result = await loadGtfsStaticData(config)
 
-        expect(data.routes.size).toBe(1)
-        expect(data.routes.get('R1')?.longName).toBe('Suburban Version')
-        expect(data.routes.get('R1')?.type).toBe(3)
+        expect(result.staticData.routes.size).toBe(1)
+        expect(result.staticData.routes.get('R1')?.longName).toBe('Suburban Version')
+        expect(result.staticData.routes.get('R1')?.type).toBe(3)
       } finally {
         globalThis.fetch = originalFetch
       }

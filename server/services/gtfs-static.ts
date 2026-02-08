@@ -1,7 +1,7 @@
 import AdmZip from 'adm-zip'
 import { parse } from 'csv-parse/sync'
 import type { Config } from '../config.js'
-import type { GtfsRoute, GtfsTrip, GtfsStop, GtfsStaticData } from '../../src/types.js'
+import type { GtfsRoute, GtfsTrip, GtfsStop, GtfsStaticData, ShapePoint, StopTimeEntry } from '../../src/types.js'
 
 interface CsvRouteRecord {
   readonly route_id: string
@@ -17,6 +17,7 @@ interface CsvTripRecord {
   readonly route_id: string
   readonly trip_headsign: string
   readonly direction_id: string
+  readonly shape_id?: string
 }
 
 interface CsvStopRecord {
@@ -64,6 +65,7 @@ export function parseTrips(csv: string): ReadonlyMap<string, GtfsTrip> {
       routeId: record.route_id,
       headsign: record.trip_headsign,
       directionId: record.direction_id,
+      ...(record.shape_id ? { shapeId: record.shape_id } : {}),
     },
   ])
   return new Map(entries)
@@ -81,6 +83,58 @@ export function parseStops(csv: string): ReadonlyMap<string, GtfsStop> {
     },
   ])
   return new Map(entries)
+}
+
+interface CsvStopTimeRecord {
+  readonly trip_id: string
+  readonly stop_id: string
+  readonly stop_sequence: string
+}
+
+interface CsvShapeRecord {
+  readonly shape_id: string
+  readonly shape_pt_lat: string
+  readonly shape_pt_lon: string
+  readonly shape_pt_sequence: string
+}
+
+export function parseStopTimes(csv: string): readonly StopTimeEntry[] {
+  const records = parseCsv<CsvStopTimeRecord>(csv)
+  return records.map((record) => ({
+    tripId: record.trip_id,
+    stopId: record.stop_id,
+    sequence: Number(record.stop_sequence),
+  }))
+}
+
+export function parseShapes(csv: string): ReadonlyMap<string, readonly ShapePoint[]> {
+  const records = parseCsv<CsvShapeRecord>(csv)
+  const grouped = new Map<string, ShapePoint[]>()
+
+  for (const record of records) {
+    const point: ShapePoint = {
+      shapeId: record.shape_id,
+      lat: Number(record.shape_pt_lat),
+      lng: Number(record.shape_pt_lon),
+      sequence: Number(record.shape_pt_sequence),
+    }
+    const existing = grouped.get(record.shape_id)
+    if (existing) {
+      existing.push(point)
+    } else {
+      grouped.set(record.shape_id, [point])
+    }
+  }
+
+  const sorted = new Map<string, readonly ShapePoint[]>()
+  for (const [shapeId, points] of grouped) {
+    sorted.set(
+      shapeId,
+      [...points].sort((a, b) => a.sequence - b.sequence)
+    )
+  }
+
+  return sorted
 }
 
 async function downloadAndExtractZip(
@@ -124,19 +178,41 @@ function extractCsvFromZip(
   return content
 }
 
-function parseGtfsFromZip(files: ReadonlyMap<string, string>): {
+function tryExtractCsvFromZip(
+  files: ReadonlyMap<string, string>,
+  filename: string,
+): string | undefined {
+  return files.get(filename)
+}
+
+export interface ParsedGtfsZip {
   readonly routes: ReadonlyMap<string, GtfsRoute>
   readonly trips: ReadonlyMap<string, GtfsTrip>
   readonly stops: ReadonlyMap<string, GtfsStop>
-} {
+  readonly stopTimes: readonly StopTimeEntry[]
+  readonly shapes: ReadonlyMap<string, readonly ShapePoint[]>
+}
+
+function parseGtfsFromZip(files: ReadonlyMap<string, string>): ParsedGtfsZip {
+  const stopTimesCsv = tryExtractCsvFromZip(files, 'stop_times.txt')
+  const shapesCsv = tryExtractCsvFromZip(files, 'shapes.txt')
+
   return {
     routes: parseRoutes(extractCsvFromZip(files, 'routes.txt')),
     trips: parseTrips(extractCsvFromZip(files, 'trips.txt')),
     stops: parseStops(extractCsvFromZip(files, 'stops.txt')),
+    stopTimes: stopTimesCsv ? parseStopTimes(stopTimesCsv) : [],
+    shapes: shapesCsv ? parseShapes(shapesCsv) : new Map(),
   }
 }
 
-export async function loadGtfsStaticData(config: Config): Promise<GtfsStaticData> {
+export interface LoadGtfsResult {
+  readonly staticData: GtfsStaticData
+  readonly stopTimes: readonly StopTimeEntry[]
+  readonly shapes: ReadonlyMap<string, readonly ShapePoint[]>
+}
+
+export async function loadGtfsStaticData(config: Config): Promise<LoadGtfsResult> {
   const [urbanFiles, suburbanFiles] = await Promise.all([
     downloadAndExtractZip(config.GTFS_URBAN_STATIC_URL),
     downloadAndExtractZip(config.GTFS_SUBURBAN_STATIC_URL),
@@ -146,8 +222,12 @@ export async function loadGtfsStaticData(config: Config): Promise<GtfsStaticData
   const suburban = parseGtfsFromZip(suburbanFiles)
 
   return {
-    routes: mergeMaps(urban.routes, suburban.routes),
-    trips: mergeMaps(urban.trips, suburban.trips),
-    stops: mergeMaps(urban.stops, suburban.stops),
+    staticData: {
+      routes: mergeMaps(urban.routes, suburban.routes),
+      trips: mergeMaps(urban.trips, suburban.trips),
+      stops: mergeMaps(urban.stops, suburban.stops),
+    },
+    stopTimes: [...urban.stopTimes, ...suburban.stopTimes],
+    shapes: mergeMaps(urban.shapes, suburban.shapes),
   }
 }

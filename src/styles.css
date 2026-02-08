@@ -334,3 +334,50 @@ html, body {
 .filter-overlay.active {
   display: block;
 }
+
+/* Vehicle HTML markers */
+.vehicle-marker {
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.vehicle-marker__rotator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: transform 0.3s ease;
+}
+
+.vehicle-marker__nose {
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-bottom: 10px solid #1e293b;
+  margin-bottom: -2px;
+  position: relative;
+  z-index: 1;
+}
+
+.vehicle-marker__circle {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  position: relative;
+  z-index: 2;
+}
+
+.vehicle-marker__label {
+  color: #ffffff;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+  user-select: none;
+  white-space: nowrap;
+}

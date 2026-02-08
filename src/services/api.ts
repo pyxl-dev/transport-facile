@@ -1,5 +1,5 @@
 import { API_BASE_URL } from '../config'
-import type { ApiResponse, Vehicle, LineInfo, Stop } from '../types'
+import type { ApiResponse, Vehicle, LineInfo, Stop, RoutePath } from '../types'
 
 async function fetchJson<T>(
   path: string,
@@ -46,4 +46,8 @@ export function fetchStops(bbox?: {
       }
     : undefined
   return fetchJson<Stop[]>(`${API_BASE_URL}/stops`, params)
+}
+
+export function fetchRoutePaths(): Promise<RoutePath[]> {
+  return fetchJson<RoutePath[]>(`${API_BASE_URL}/route-paths`)
 }

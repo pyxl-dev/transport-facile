@@ -2,8 +2,18 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 import { createMap } from './map/create-map'
 import { initVehicleLayer, updateVehicleLayer, setupVehiclePopup } from './map/vehicle-layer'
 import { initStopLayer, updateStopLayer } from './map/stop-layer'
-import { createStore, setVehicles, setLines, setStops, setLoading, getFilteredVehicles } from './state'
-import { fetchVehicles, fetchLines, fetchStops } from './services/api'
+import { initRouteLayer, updateRouteLayer } from './map/route-layer'
+import {
+  createStore,
+  setVehicles,
+  setLines,
+  setStops,
+  setRoutePaths,
+  setLoading,
+  getFilteredVehicles,
+  getFilteredRoutePaths,
+} from './state'
+import { fetchVehicles, fetchLines, fetchStops, fetchRoutePaths } from './services/api'
 import { createPollingService } from './services/polling'
 import { createFilterPanel } from './ui/filter-panel'
 import { createLoadingIndicator } from './ui/loading'
@@ -22,6 +32,7 @@ function init(): void {
   const loading = createLoadingIndicator(loadingContainer)
 
   map.on('load', () => {
+    initRouteLayer(map)
     initVehicleLayer(map)
     setupVehiclePopup(map)
     initStopLayer(map)
@@ -29,8 +40,11 @@ function init(): void {
     createFilterPanel(uiRoot, store)
 
     store.subscribe((state) => {
-      const filtered = getFilteredVehicles(state)
-      updateVehicleLayer(map, filtered)
+      const filteredVehicles = getFilteredVehicles(state)
+      updateVehicleLayer(map, filteredVehicles)
+
+      const filteredRoutes = getFilteredRoutePaths(state)
+      updateRouteLayer(map, filteredRoutes)
     })
 
     async function refreshVehicles(): Promise<void> {
@@ -49,12 +63,14 @@ function init(): void {
     }
 
     async function loadInitialData(): Promise<void> {
-      const [lines, stops] = await Promise.all([
+      const [lines, stops, routePaths] = await Promise.all([
         fetchLines(),
         fetchStops(),
+        fetchRoutePaths(),
       ])
       store.setState(setLines(lines))
       store.setState(setStops(stops))
+      store.setState(setRoutePaths(routePaths))
       updateStopLayer(map, stops)
     }
 

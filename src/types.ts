@@ -39,6 +39,7 @@ export interface GtfsTrip {
   readonly routeId: string
   readonly headsign: string
   readonly directionId: string
+  readonly shapeId?: string
 }
 
 export interface GtfsStop {
@@ -73,6 +74,7 @@ export interface AppState {
   readonly vehicles: readonly Vehicle[]
   readonly lines: readonly LineInfo[]
   readonly stops: readonly Stop[]
+  readonly routePaths: readonly RoutePath[]
   readonly selectedLines: ReadonlySet<string>
   readonly isLoading: boolean
   readonly lastUpdated: number | null
@@ -83,4 +85,25 @@ export interface BBox {
   readonly minLat: number
   readonly maxLng: number
   readonly maxLat: number
+}
+
+export interface RoutePath {
+  readonly routeId: string
+  readonly shortName: string
+  readonly color: string
+  readonly type: 'tram' | 'bus'
+  readonly coordinates: readonly (readonly [number, number])[]
+}
+
+export interface ShapePoint {
+  readonly shapeId: string
+  readonly lat: number
+  readonly lng: number
+  readonly sequence: number
+}
+
+export interface StopTimeEntry {
+  readonly tripId: string
+  readonly stopId: string
+  readonly sequence: number
 }
