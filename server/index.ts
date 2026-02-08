@@ -12,13 +12,13 @@ async function main(): Promise<void> {
     loadGtfsStaticData(config),
     fetchOverpassRoutes(),
   ])
-  const { staticData, stopTimes, shapes } = gtfsResult
+  const { staticData } = gtfsResult
   console.info(
     `GTFS data loaded: ${staticData.routes.size} routes, ${staticData.trips.size} trips, ${staticData.stops.size} stops`
   )
   console.info(`Overpass routes: ${overpassPaths.size} lines`)
 
-  const routePaths = buildRoutePaths(staticData, stopTimes, shapes, overpassPaths)
+  const routePaths = buildRoutePaths(staticData, gtfsResult.stopTimes, gtfsResult.shapes, overpassPaths)
   console.info(`Route paths built: ${routePaths.length} routes`)
 
   const app = createApp(staticData, config, routePaths)
