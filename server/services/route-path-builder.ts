@@ -5,6 +5,9 @@ import type {
   ShapePoint,
   StopTimeEntry,
 } from '../../src/types.js'
+import { matchOverpassRef } from './overpass.js'
+
+type Coordinates = readonly (readonly [number, number])[]
 
 function resolveRouteType(gtfsType: number): 'tram' | 'bus' {
   return gtfsType === 0 ? 'tram' : 'bus'
@@ -83,36 +86,48 @@ function findBestTripForRoute(
 export function buildRoutePaths(
   staticData: GtfsStaticData,
   stopTimes: readonly StopTimeEntry[],
-  shapes: ReadonlyMap<string, readonly ShapePoint[]>
+  shapes: ReadonlyMap<string, readonly ShapePoint[]>,
+  overpassPaths?: ReadonlyMap<string, Coordinates>
 ): readonly RoutePath[] {
   const stopTimesByTrip = groupStopTimesByTrip(stopTimes)
   const paths: RoutePath[] = []
 
   for (const route of staticData.routes.values()) {
-    const bestTrip = findBestTripForRoute(
-      route.routeId,
-      staticData.trips,
-      stopTimesByTrip
-    )
+    let coordinates: readonly (readonly [number, number])[] | undefined
 
-    if (!bestTrip) {
-      continue
+    // Priority 1: Overpass (precise OSM geometry for tram lines only)
+    if (overpassPaths && route.type === 0) {
+      const overpassMatch = matchOverpassRef(route.shortName, overpassPaths)
+      if (overpassMatch && overpassMatch.length >= 2) {
+        coordinates = overpassMatch
+      }
     }
 
-    let coordinates: readonly (readonly [number, number])[]
+    // Priority 2 & 3: GTFS shapes or stop sequences
+    if (!coordinates) {
+      const bestTrip = findBestTripForRoute(
+        route.routeId,
+        staticData.trips,
+        stopTimesByTrip
+      )
 
-    if (bestTrip.shapeId) {
-      const shapePoints = shapes.get(bestTrip.shapeId)
-      if (shapePoints && shapePoints.length > 0) {
-        coordinates = buildPathFromShape(shapePoints)
+      if (!bestTrip) {
+        continue
+      }
+
+      if (bestTrip.shapeId) {
+        const shapePoints = shapes.get(bestTrip.shapeId)
+        if (shapePoints && shapePoints.length > 0) {
+          coordinates = buildPathFromShape(shapePoints)
+        } else {
+          coordinates = buildFromStops(bestTrip.tripId, stopTimesByTrip, staticData)
+        }
       } else {
         coordinates = buildFromStops(bestTrip.tripId, stopTimesByTrip, staticData)
       }
-    } else {
-      coordinates = buildFromStops(bestTrip.tripId, stopTimesByTrip, staticData)
     }
 
-    if (coordinates.length < 2) {
+    if (!coordinates || coordinates.length < 2) {
       continue
     }
 
