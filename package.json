@@ -1,0 +1,36 @@
+{
+  "name": "transport-map",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"pnpm dev:server\" \"pnpm dev:client\"",
+    "dev:server": "tsx watch server/index.ts",
+    "dev:client": "vite",
+    "build": "tsc && vite build",
+    "build:server": "tsc -p tsconfig.server.json",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "adm-zip": "^0.5.16",
+    "cors": "^2.8.5",
+    "csv-parse": "^5.6.0",
+    "express": "^4.21.1",
+    "gtfs-realtime-bindings": "^1.1.1",
+    "maplibre-gl": "^4.7.1",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/adm-zip": "^0.5.7",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "concurrently": "^9.1.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "vite": "^6.0.7",
+    "vitest": "^2.1.8"
+  }
+}
