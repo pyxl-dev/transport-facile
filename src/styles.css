@@ -221,9 +221,10 @@ html, body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 4px;
   min-width: 44px;
   height: 36px;
-  padding: 0 14px;
+  padding: 0 10px 0 14px;
   border-radius: 18px;
   border: 2px solid var(--chip-color, #94a3b8);
   background: transparent;
@@ -236,6 +237,10 @@ html, body {
   touch-action: manipulation;
 }
 
+.filter-chip__label {
+  pointer-events: none;
+}
+
 .filter-chip.active {
   background: var(--chip-color, #94a3b8);
   color: var(--chip-text, #ffffff);
@@ -243,6 +248,39 @@ html, body {
 
 .filter-chip:active {
   transform: scale(0.95);
+}
+
+/* Favorite star button */
+.favorite-star {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color 0.15s ease, transform 0.1s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.favorite-star:active {
+  transform: scale(1.2);
+}
+
+.favorite-star--active {
+  color: #f59e0b;
+}
+
+.filter-chip--active .favorite-star {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.filter-chip--active .favorite-star--active {
+  color: #fbbf24;
 }
 
 /* Vehicle popup */

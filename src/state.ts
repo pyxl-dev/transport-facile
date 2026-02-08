@@ -6,6 +6,7 @@ const initialState: AppState = {
   stops: [],
   routePaths: [],
   selectedLines: new Set<string>(),
+  favoriteLines: new Set<string>(),
   isLoading: false,
   lastUpdated: null,
 }
@@ -83,6 +84,30 @@ export function setRoutePaths(
   routePaths: readonly RoutePath[]
 ): (state: AppState) => AppState {
   return (state) => ({ ...state, routePaths })
+}
+
+export function toggleFavorite(
+  lineId: string
+): (state: AppState) => AppState {
+  return (state) => {
+    const newFavorites = new Set(state.favoriteLines)
+    if (newFavorites.has(lineId)) {
+      newFavorites.delete(lineId)
+    } else {
+      newFavorites.add(lineId)
+    }
+    return { ...state, favoriteLines: newFavorites }
+  }
+}
+
+export function setFavoriteLines(
+  lineIds: ReadonlySet<string>
+): (state: AppState) => AppState {
+  return (state) => ({ ...state, favoriteLines: new Set(lineIds) })
+}
+
+export function clearFavorites(): (state: AppState) => AppState {
+  return (state) => ({ ...state, favoriteLines: new Set<string>() })
 }
 
 export function getFilteredVehicles(state: AppState): readonly Vehicle[] {

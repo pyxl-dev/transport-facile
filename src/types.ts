@@ -76,6 +76,7 @@ export interface AppState {
   readonly stops: readonly Stop[]
   readonly routePaths: readonly RoutePath[]
   readonly selectedLines: ReadonlySet<string>
+  readonly favoriteLines: ReadonlySet<string>
   readonly isLoading: boolean
   readonly lastUpdated: number | null
 }

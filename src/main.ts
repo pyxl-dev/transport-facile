@@ -10,11 +10,13 @@ import {
   setStops,
   setRoutePaths,
   setLoading,
+  setFavoriteLines,
   getFilteredVehicles,
   getFilteredRoutePaths,
 } from './state'
 import { fetchVehicles, fetchLines, fetchStops, fetchRoutePaths } from './services/api'
 import { createPollingService } from './services/polling'
+import { loadFavorites, saveFavorites } from './services/favorites-storage'
 import { createFilterPanel } from './ui/filter-panel'
 import { createLoadingIndicator } from './ui/loading'
 import { createRefreshTimer } from './ui/refresh-timer'
@@ -78,10 +80,25 @@ function init(): void {
       updateStopLayer(map, stops)
     }
 
+    let prevFavorites: ReadonlySet<string> = new Set()
+    store.subscribe((state) => {
+      if (state.favoriteLines !== prevFavorites) {
+        prevFavorites = state.favoriteLines
+        saveFavorites(state.favoriteLines)
+      }
+    })
+
     const polling = createPollingService(refreshVehicles)
 
     loadInitialData()
-      .then(() => polling.start())
+      .then(() => {
+        const storedFavorites = loadFavorites()
+        if (storedFavorites.size > 0) {
+          store.setState(setFavoriteLines(storedFavorites))
+          store.setState((state) => ({ ...state, selectedLines: new Set(state.favoriteLines) }))
+        }
+        polling.start()
+      })
       .catch(() => {
         polling.start()
       })

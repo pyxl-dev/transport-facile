@@ -1,6 +1,7 @@
 import type { Store } from '../state'
-import { toggleLineFilter, clearLineFilter } from '../state'
+import { toggleLineFilter, clearLineFilter, toggleFavorite } from '../state'
 import type { LineInfo } from '../types'
+import { createFavoriteButton } from './favorite-icon'
 
 const FILTER_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>`
 
@@ -24,13 +25,22 @@ function groupLinesByType(
 function createChipElement(
   line: LineInfo,
   isSelected: boolean,
-  onToggle: () => void
+  isFavorite: boolean,
+  onToggle: () => void,
+  onToggleFavorite: () => void
 ): HTMLButtonElement {
   const chip = document.createElement('button')
   chip.className = `filter-chip${isSelected ? ' filter-chip--active' : ''}`
-  chip.textContent = line.name
   chip.setAttribute('aria-pressed', String(isSelected))
   chip.setAttribute('data-line-id', line.id)
+
+  const label = document.createElement('span')
+  label.className = 'filter-chip__label'
+  label.textContent = line.name
+  chip.appendChild(label)
+
+  const star = createFavoriteButton(isFavorite, onToggleFavorite)
+  chip.appendChild(star)
 
   if (isSelected) {
     chip.style.backgroundColor = line.color
@@ -50,6 +60,7 @@ function createChipElement(
 function createChipsContainer(
   lines: readonly LineInfo[],
   selectedLines: ReadonlySet<string>,
+  favoriteLines: ReadonlySet<string>,
   store: Store
 ): HTMLDivElement {
   const container = document.createElement('div')
@@ -57,9 +68,14 @@ function createChipsContainer(
 
   for (const line of lines) {
     const isSelected = selectedLines.has(line.id)
-    const chip = createChipElement(line, isSelected, () => {
-      store.setState(toggleLineFilter(line.id))
-    })
+    const isFavorite = favoriteLines.has(line.id)
+    const chip = createChipElement(
+      line,
+      isSelected,
+      isFavorite,
+      () => { store.setState(toggleLineFilter(line.id)) },
+      () => { store.setState(toggleFavorite(line.id)) }
+    )
     container.appendChild(chip)
   }
 
@@ -70,6 +86,7 @@ function createGroupElement(
   title: string,
   lines: readonly LineInfo[],
   selectedLines: ReadonlySet<string>,
+  favoriteLines: ReadonlySet<string>,
   store: Store
 ): HTMLDivElement {
   const group = document.createElement('div')
@@ -79,7 +96,7 @@ function createGroupElement(
   heading.textContent = title
   group.appendChild(heading)
 
-  const chips = createChipsContainer(lines, selectedLines, store)
+  const chips = createChipsContainer(lines, selectedLines, favoriteLines, store)
   group.appendChild(chips)
 
   return group
@@ -89,6 +106,7 @@ function renderPanelContent(
   linesContainer: HTMLDivElement,
   lines: readonly LineInfo[],
   selectedLines: ReadonlySet<string>,
+  favoriteLines: ReadonlySet<string>,
   store: Store
 ): void {
   linesContainer.innerHTML = ''
@@ -96,12 +114,12 @@ function renderPanelContent(
   const { trams, buses } = groupLinesByType(lines)
 
   if (trams.length > 0) {
-    const tramGroup = createGroupElement('Tramway', trams, selectedLines, store)
+    const tramGroup = createGroupElement('Tramway', trams, selectedLines, favoriteLines, store)
     linesContainer.appendChild(tramGroup)
   }
 
   if (buses.length > 0) {
-    const busGroup = createGroupElement('Bus', buses, selectedLines, store)
+    const busGroup = createGroupElement('Bus', buses, selectedLines, favoriteLines, store)
     linesContainer.appendChild(busGroup)
   }
 }
@@ -183,6 +201,7 @@ export function createFilterPanel(
       linesContainer,
       state.lines,
       state.selectedLines,
+      state.favoriteLines,
       store
     )
     updateBadge(badge, state.selectedLines.size)
@@ -193,6 +212,7 @@ export function createFilterPanel(
     linesContainer,
     currentState.lines,
     currentState.selectedLines,
+    currentState.favoriteLines,
     store
   )
   updateBadge(badge, currentState.selectedLines.size)
