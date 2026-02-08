@@ -9,6 +9,7 @@
     "dev:client": "vite",
     "build": "tsc && vite build",
     "build:server": "tsc -p tsconfig.server.json",
+    "start": "tsx server/index.ts",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -21,6 +22,7 @@
     "express": "^4.21.1",
     "gtfs-realtime-bindings": "^1.1.1",
     "maplibre-gl": "^4.7.1",
+    "tsx": "^4.19.2",
     "zod": "^3.24.1"
   },
   "devDependencies": {
@@ -29,7 +31,6 @@
     "@types/express": "^5.0.0",
     "concurrently": "^9.1.2",
     "jsdom": "^28.0.0",
-    "tsx": "^4.19.2",
     "typescript": "^5.7.3",
     "vite": "^6.0.7",
     "vitest": "^2.1.8"
