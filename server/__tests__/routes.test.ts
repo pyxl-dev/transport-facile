@@ -31,6 +31,8 @@ function createTestConfig(): Config {
     GTFS_SUBURBAN_RT_URL: 'https://example.com/suburban.pb',
     GTFS_URBAN_STATIC_URL: 'https://example.com/urban.zip',
     GTFS_SUBURBAN_STATIC_URL: 'https://example.com/suburban.zip',
+    GTFS_URBAN_TU_URL: 'https://example.com/urban-tu.pb',
+    GTFS_SUBURBAN_TU_URL: 'https://example.com/suburban-tu.pb',
     GTFS_REFRESH_INTERVAL: 30000,
   }
 }

@@ -1,6 +1,8 @@
 import maplibregl from 'maplibre-gl'
 import type { Stop } from '../types'
 import { STOP_VISIBLE_ZOOM } from '../config'
+import { createStopPopupContent, renderArrivals } from '../ui/stop-popup'
+import { fetchStopArrivals } from '../services/api'
 
 const STOP_SOURCE = 'stops'
 const STOP_CLUSTERS_LAYER = 'stop-clusters'
@@ -108,10 +110,27 @@ export function initStopLayer(map: maplibregl.Map): void {
       return
     }
 
-    new maplibregl.Popup()
+    const stopName = String(properties.name)
+    const stopId = String(properties.stopId)
+
+    const popup = new maplibregl.Popup({ maxWidth: '320px' })
       .setLngLat(coordinates)
-      .setHTML(`<strong>${String(properties.name)}</strong>`)
+      .setHTML(createStopPopupContent(stopName))
       .addTo(map)
+
+    fetchStopArrivals(stopId)
+      .then((arrivals) => {
+        const container = popup.getElement()?.querySelector('#stop-arrivals-content')
+        if (container) {
+          container.innerHTML = renderArrivals(arrivals)
+        }
+      })
+      .catch(() => {
+        const container = popup.getElement()?.querySelector('#stop-arrivals-content')
+        if (container) {
+          container.innerHTML = '<div class="stop-popup__empty">Erreur de chargement</div>'
+        }
+      })
   })
 
   map.on('click', STOP_CLUSTERS_LAYER, (e) => {

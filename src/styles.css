@@ -239,6 +239,7 @@ html, body {
 
 .filter-chip__label {
   pointer-events: none;
+  user-select: none;
 }
 
 .filter-chip.active {
@@ -371,6 +372,89 @@ html, body {
 
 .filter-overlay.active {
   display: block;
+}
+
+/* Stop popup */
+.stop-popup {
+  min-width: 200px;
+}
+
+.stop-popup__name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.stop-popup__loading {
+  font-size: 13px;
+  color: #94a3b8;
+  padding: 8px 0;
+}
+
+.stop-popup__empty {
+  font-size: 13px;
+  color: #94a3b8;
+  padding: 4px 0;
+}
+
+.stop-arrival__list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.stop-arrival__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+}
+
+.stop-arrival__line {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 11px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #ffffff;
+  flex-shrink: 0;
+}
+
+.stop-arrival__headsign {
+  flex: 1;
+  font-size: 13px;
+  color: #334155;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stop-arrival__time {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.stop-arrival__rt {
+  font-size: 9px;
+  font-weight: 700;
+  color: #16a34a;
+  background: #dcfce7;
+  padding: 1px 4px;
+  border-radius: 4px;
 }
 
 /* Vehicle HTML markers */

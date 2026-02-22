@@ -20,7 +20,9 @@ async function main(): Promise<void> {
   const routePaths = buildRoutePaths(staticData, gtfsResult.stopTimes, gtfsResult.shapes, overpassPaths)
   console.info(`Route paths built: ${routePaths.length} routes`)
 
-  const app = createApp(staticData, config, routePaths)
+  console.info(`Stop times loaded: ${gtfsResult.stopTimes.length} entries`)
+
+  const app = createApp(staticData, config, routePaths, gtfsResult.stopTimes)
 
   const server = app.listen(config.PORT, () => {
     console.info(`Transport map server listening on http://localhost:${config.PORT}`)

@@ -152,9 +152,9 @@ describe('gtfs-static', () => {
       const stopTimes = parseStopTimes(csv)
 
       expect(stopTimes).toHaveLength(3)
-      expect(stopTimes[0]).toEqual({ tripId: 'T100', stopId: 'S1', sequence: 1 })
-      expect(stopTimes[1]).toEqual({ tripId: 'T100', stopId: 'S2', sequence: 2 })
-      expect(stopTimes[2]).toEqual({ tripId: 'T100', stopId: 'S3', sequence: 3 })
+      expect(stopTimes[0]).toEqual({ tripId: 'T100', stopId: 'S1', sequence: 1, arrivalTime: '08:00:00', departureTime: '08:01:00' })
+      expect(stopTimes[1]).toEqual({ tripId: 'T100', stopId: 'S2', sequence: 2, arrivalTime: '08:05:00', departureTime: '08:06:00' })
+      expect(stopTimes[2]).toEqual({ tripId: 'T100', stopId: 'S3', sequence: 3, arrivalTime: '08:10:00', departureTime: '08:11:00' })
     })
 
     it('should return empty array for empty CSV', () => {
@@ -292,6 +292,8 @@ describe('gtfs-static', () => {
           GTFS_SUBURBAN_RT_URL: 'https://example.com/Suburbain/VehiclePosition.pb',
           GTFS_URBAN_STATIC_URL: 'https://example.com/Urbain/GTFS.zip',
           GTFS_SUBURBAN_STATIC_URL: 'https://example.com/Suburbain/GTFS.zip',
+          GTFS_URBAN_TU_URL: 'https://example.com/urban-tu.pb',
+          GTFS_SUBURBAN_TU_URL: 'https://example.com/suburban-tu.pb',
           GTFS_REFRESH_INTERVAL: 30000,
         }
 
@@ -365,6 +367,8 @@ describe('gtfs-static', () => {
           GTFS_SUBURBAN_RT_URL: 'https://example.com/Suburbain/VehiclePosition.pb',
           GTFS_URBAN_STATIC_URL: 'https://example.com/Urbain/GTFS.zip',
           GTFS_SUBURBAN_STATIC_URL: 'https://example.com/Suburbain/GTFS.zip',
+          GTFS_URBAN_TU_URL: 'https://example.com/urban-tu.pb',
+          GTFS_SUBURBAN_TU_URL: 'https://example.com/suburban-tu.pb',
           GTFS_REFRESH_INTERVAL: 30000,
         }
 

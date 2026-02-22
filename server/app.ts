@@ -2,12 +2,13 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import express, { type Express, type Request, type Response, type NextFunction } from 'express'
 import cors from 'cors'
-import type { GtfsStaticData, ApiResponse, RoutePath } from '../src/types.js'
+import type { GtfsStaticData, ApiResponse, RoutePath, StopTimeEntry } from '../src/types.js'
 import type { Config } from './config.js'
 import { vehiclesRouter } from './routes/vehicles.js'
 import { linesRouter } from './routes/lines.js'
 import { stopsRouter } from './routes/stops.js'
 import { routePathsRouter } from './routes/route-paths.js'
+import { stopArrivalsRouter } from './routes/stop-arrivals.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const STATIC_DIR = path.join(__dirname, '..', 'dist')
@@ -15,7 +16,8 @@ const STATIC_DIR = path.join(__dirname, '..', 'dist')
 export function createApp(
   staticData: GtfsStaticData,
   config: Config,
-  routePaths?: readonly RoutePath[]
+  routePaths?: readonly RoutePath[],
+  stopTimes?: readonly StopTimeEntry[]
 ): Express {
   const app = express()
 
@@ -25,10 +27,12 @@ export function createApp(
   app.locals.staticData = staticData
   app.locals.config = config
   app.locals.routePaths = routePaths ?? []
+  app.locals.stopTimes = stopTimes ?? []
 
   app.use('/api/vehicles', vehiclesRouter)
   app.use('/api/lines', linesRouter)
   app.use('/api/stops', stopsRouter)
+  app.use('/api/stops', stopArrivalsRouter)
   app.use('/api/route-paths', routePathsRouter)
 
   app.use(express.static(STATIC_DIR))

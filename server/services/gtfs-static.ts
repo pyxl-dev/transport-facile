@@ -89,6 +89,8 @@ interface CsvStopTimeRecord {
   readonly trip_id: string
   readonly stop_id: string
   readonly stop_sequence: string
+  readonly arrival_time?: string
+  readonly departure_time?: string
 }
 
 interface CsvShapeRecord {
@@ -104,6 +106,8 @@ export function parseStopTimes(csv: string): readonly StopTimeEntry[] {
     tripId: record.trip_id,
     stopId: record.stop_id,
     sequence: Number(record.stop_sequence),
+    ...(record.arrival_time ? { arrivalTime: record.arrival_time } : {}),
+    ...(record.departure_time ? { departureTime: record.departure_time } : {}),
   }))
 }
 

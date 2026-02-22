@@ -18,6 +18,14 @@ const envSchema = z.object({
     .string()
     .url()
     .default('https://data.montpellier3m.fr/GTFS/Suburbain/GTFS.zip'),
+  GTFS_URBAN_TU_URL: z
+    .string()
+    .url()
+    .default('https://data.montpellier3m.fr/GTFS/Urbain/TripUpdate.pb'),
+  GTFS_SUBURBAN_TU_URL: z
+    .string()
+    .url()
+    .default('https://data.montpellier3m.fr/GTFS/Suburbain/TripUpdate.pb'),
   GTFS_REFRESH_INTERVAL: z.coerce.number().default(30000),
 })
 

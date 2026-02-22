@@ -107,4 +107,15 @@ export interface StopTimeEntry {
   readonly tripId: string
   readonly stopId: string
   readonly sequence: number
+  readonly arrivalTime?: string
+  readonly departureTime?: string
+}
+
+export interface StopArrival {
+  readonly lineName: string
+  readonly lineColor: string
+  readonly lineType: 'tram' | 'bus'
+  readonly headsign: string
+  readonly arrivalMinutes: number
+  readonly isRealTime: boolean
 }
