@@ -1,11 +1,16 @@
 import type { StopArrival } from '../types'
 
+interface DeduplicatedArrival {
+  readonly minutes: number
+  readonly isRealTime: boolean
+}
+
 interface ArrivalGroup {
   readonly lineName: string
   readonly direction: 'A' | 'B'
   readonly lineColor: string
   readonly headsign: string
-  readonly arrivals: readonly StopArrival[]
+  readonly arrivals: readonly DeduplicatedArrival[]
 }
 
 function stripTramPrefix(lineName: string): string {
@@ -22,10 +27,31 @@ function formatDisplayName(lineName: string, direction: 'A' | 'B'): string {
 }
 
 function formatMinutes(minutes: number): string {
-  if (minutes === 0) {
-    return '<1 min'
+  return minutes === 0 ? '<1\u2032' : `${minutes}\u2032`
+}
+
+function deduplicateArrivals(arrivals: readonly StopArrival[]): readonly DeduplicatedArrival[] {
+  const sorted = [...arrivals].sort((a, b) => a.arrivalMinutes - b.arrivalMinutes)
+  const seen = new Set<number>()
+  const result: DeduplicatedArrival[] = []
+
+  for (const arrival of sorted) {
+    if (seen.has(arrival.arrivalMinutes)) {
+      // If duplicate minute, upgrade existing to RT if this one is RT
+      if (arrival.isRealTime) {
+        const existing = result.find((r) => r.minutes === arrival.arrivalMinutes)
+        if (existing && !existing.isRealTime) {
+          const idx = result.indexOf(existing)
+          result[idx] = { minutes: existing.minutes, isRealTime: true }
+        }
+      }
+      continue
+    }
+    seen.add(arrival.arrivalMinutes)
+    result.push({ minutes: arrival.arrivalMinutes, isRealTime: arrival.isRealTime })
   }
-  return `${minutes} min`
+
+  return result
 }
 
 function groupArrivals(arrivals: readonly StopArrival[]): readonly ArrivalGroup[] {
@@ -52,28 +78,27 @@ function groupArrivals(arrivals: readonly StopArrival[]): readonly ArrivalGroup[
   return Array.from(groupMap.values())
     .map((g) => ({
       ...g,
-      arrivals: [...g.arrivals].sort((a, b) => a.arrivalMinutes - b.arrivalMinutes),
+      arrivals: deduplicateArrivals(g.arrivals),
     }))
-    .sort((a, b) => a.arrivals[0].arrivalMinutes - b.arrivals[0].arrivalMinutes)
+    .sort((a, b) => a.arrivals[0].minutes - b.arrivals[0].minutes)
 }
 
-function renderTime(arrival: StopArrival): string {
+function renderTime(arrival: DeduplicatedArrival, isFirst: boolean): string {
   const rtBadge = arrival.isRealTime
     ? '<span class="stop-arrival__rt">RT</span>'
     : ''
-  return `<span class="stop-arrival__time">${formatMinutes(arrival.arrivalMinutes)}${rtBadge}</span>`
+  const firstClass = isFirst ? ' stop-arrival__time--first' : ''
+  return `<span class="stop-arrival__time${firstClass}">${formatMinutes(arrival.minutes)}${rtBadge}</span>`
 }
 
 function renderGroup(group: ArrivalGroup): string {
-  const times = group.arrivals.map(renderTime).join('')
+  const times = group.arrivals.map((a, i) => renderTime(a, i === 0)).join('')
   const displayName = formatDisplayName(group.lineName, group.direction)
 
-  return `<div class="stop-arrival__group">
-    <div class="stop-arrival__header">
-      <span class="stop-arrival__line" style="background-color: ${group.lineColor};">${displayName}</span>
-      <span class="stop-arrival__direction">${group.headsign}</span>
-    </div>
-    <div class="stop-arrival__times">${times}</div>
+  return `<div class="stop-arrival__row">
+    <span class="stop-arrival__line" style="background-color: ${group.lineColor};">${displayName}</span>
+    <span class="stop-arrival__headsign">${group.headsign}</span>
+    <span class="stop-arrival__times">${times}</span>
   </div>`
 }
 

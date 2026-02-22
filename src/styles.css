@@ -400,15 +400,15 @@ html, body {
 
 /* Stop popup */
 .stop-popup {
-  min-width: 200px;
+  min-width: 220px;
 }
 
 .stop-popup__name {
   font-size: 15px;
   font-weight: 600;
   color: #1e293b;
-  margin-bottom: 8px;
-  padding-bottom: 6px;
+  margin-bottom: 6px;
+  padding-bottom: 5px;
   border-bottom: 1px solid #e2e8f0;
 }
 
@@ -427,70 +427,73 @@ html, body {
 .stop-arrival__list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px;
   max-height: 280px;
   overflow-y: auto;
 }
 
-.stop-arrival__group {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.stop-arrival__header {
+.stop-arrival__row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 
 .stop-arrival__line {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 32px;
-  height: 22px;
-  padding: 0 6px;
-  border-radius: 11px;
+  min-width: 28px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 10px;
   font-size: 11px;
   font-weight: 700;
   color: #ffffff;
   flex-shrink: 0;
 }
 
-.stop-arrival__direction {
-  font-size: 13px;
+.stop-arrival__headsign {
+  font-size: 12px;
   font-weight: 500;
-  color: #334155;
+  color: #475569;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
 }
 
 .stop-arrival__times {
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
   gap: 6px;
-  padding-left: 38px;
+  flex-shrink: 0;
 }
 
 .stop-arrival__time {
-  font-size: 13px;
-  font-weight: 600;
-  color: #1e293b;
+  font-size: 12px;
+  font-weight: 500;
+  color: #64748b;
   white-space: nowrap;
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: 2px;
+}
+
+.stop-arrival__time--first {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1e293b;
 }
 
 .stop-arrival__rt {
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 700;
   color: #16a34a;
   background: #dcfce7;
-  padding: 1px 4px;
-  border-radius: 4px;
+  padding: 0 3px;
+  border-radius: 3px;
+  line-height: 14px;
 }
 
 /* Vehicle HTML markers */
