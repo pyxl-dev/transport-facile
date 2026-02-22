@@ -45,7 +45,7 @@ let tripsCache: ReadonlyMap<string, GtfsTrip> | null = null
 let stopsCache: ReadonlyMap<string, GtfsStop> | null = null
 let activeStopIdsCache: ReadonlySet<string> | null = null
 let routePathsCache: readonly RoutePath[] | null = null
-let tripStopsCache: Readonly<Record<string, readonly [number, string][]>> | null = null
+let tripStopsCache: Readonly<Record<string, readonly [string, number, number][]>> | null = null
 
 // --- Asset loading helpers ---
 
@@ -95,26 +95,52 @@ async function loadRoutePaths(env: Env, url: string): Promise<readonly RoutePath
 async function loadTripStops(
   env: Env,
   url: string
-): Promise<Readonly<Record<string, readonly [number, string][]>>> {
+): Promise<Readonly<Record<string, readonly [string, number, number][]>>> {
   if (tripStopsCache) return tripStopsCache
-  tripStopsCache = await (await fetchAsset(env, url, '/data/gtfs-trip-stops.json')).json() as Record<string, [number, string][]>
+  tripStopsCache = await (await fetchAsset(env, url, '/data/gtfs-trip-stops.json')).json() as Record<string, [string, number, number][]>
   return tripStopsCache
+}
+
+function distToSegmentSquared(
+  pLat: number, pLng: number,
+  aLat: number, aLng: number,
+  bLat: number, bLng: number
+): number {
+  const cosLat = Math.cos(pLat * Math.PI / 180)
+  const ax = (aLng - pLng) * cosLat, ay = aLat - pLat
+  const bx = (bLng - pLng) * cosLat, by = bLat - pLat
+  const dx = bx - ax, dy = by - ay
+  const lenSq = dx * dx + dy * dy
+  if (lenSq === 0) return ax * ax + ay * ay
+  const t = Math.max(0, Math.min(1, ((-ax) * dx + (-ay) * dy) / lenSq))
+  const projX = ax + t * dx, projY = ay + t * dy
+  return projX * projX + projY * projY
 }
 
 function findNextStopName(
   tripId: string,
-  tripStops: Readonly<Record<string, readonly [number, string][]>>,
-  nowDaySeconds: number
+  tripStops: Readonly<Record<string, readonly [string, number, number][]>>,
+  vehicleLat: number,
+  vehicleLng: number
 ): string | undefined {
-  const entries = tripStops[tripId]
-  if (!entries) return undefined
+  const stops = tripStops[tripId]
+  if (!stops || stops.length < 2) return stops?.[0]?.[0]
 
-  for (const [arrivalSeconds, stopName] of entries) {
-    if (arrivalSeconds > nowDaySeconds) {
-      return stopName
+  // Find the segment (pair of consecutive stops) closest to the vehicle
+  let bestSegIdx = 0
+  let bestDist = Infinity
+  for (let i = 0; i < stops.length - 1; i++) {
+    const [, aLat, aLng] = stops[i]
+    const [, bLat, bLng] = stops[i + 1]
+    const d = distToSegmentSquared(vehicleLat, vehicleLng, aLat, aLng, bLat, bLng)
+    if (d < bestDist) {
+      bestDist = d
+      bestSegIdx = i
     }
   }
-  return undefined
+
+  // The next stop is the end of the segment (stops are ordered in trip direction)
+  return stops[bestSegIdx + 1][0]
 }
 
 function hashStopId(stopId: string): number {
@@ -207,8 +233,6 @@ async function handleVehicles(
     GTFS_URLS.SUBURBAN_RT,
   ])
 
-  const nowDaySeconds = getNowDaySecondsInParis()
-
   const vehicles: Vehicle[] = rawPositions
     .map((raw) => {
       const trip = trips.get(raw.tripId)
@@ -216,7 +240,7 @@ async function handleVehicles(
       const route = routes.get(trip.routeId)
       if (!route) return null
 
-      const nextStopName = findNextStopName(raw.tripId, tripStops, nowDaySeconds)
+      const nextStopName = findNextStopName(raw.tripId, tripStops, raw.lat, raw.lng)
 
       return {
         vehicleId: raw.vehicleId,
@@ -451,24 +475,24 @@ export async function onRequest(context: CFContext): Promise<Response> {
     const path = params.catchall?.join('/') ?? ''
 
     if (path === 'vehicles') {
-      return handleVehicles(url, env, request.url)
+      return await handleVehicles(url, env, request.url)
     }
 
     if (path === 'lines') {
-      return handleLines(env, request.url)
+      return await handleLines(env, request.url)
     }
 
     if (path === 'stops') {
-      return handleStops(url, env, request.url)
+      return await handleStops(url, env, request.url)
     }
 
     if (path === 'route-paths') {
-      return handleRoutePaths(env, request.url)
+      return await handleRoutePaths(env, request.url)
     }
 
     const arrivalsMatch = path.match(/^stops\/([^/]+)\/arrivals$/)
     if (arrivalsMatch) {
-      return handleStopArrivals(arrivalsMatch[1], env, request.url)
+      return await handleStopArrivals(arrivalsMatch[1], env, request.url)
     }
 
     return apiError('Not found', 404)

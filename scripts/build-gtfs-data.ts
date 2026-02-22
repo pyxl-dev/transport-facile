@@ -23,27 +23,18 @@ function hashStopId(stopId: string, totalChunks: number): number {
   return Math.abs(hash) % totalChunks
 }
 
-function gtfsTimeToSeconds(time: string): number {
-  const parts = time.split(':')
-  if (parts.length < 3) return -1
-  return Number(parts[0]) * 3600 + Number(parts[1]) * 60 + Number(parts[2])
-}
-
 function buildTripStops(
   stopTimes: readonly StopTimeEntry[],
   stops: ReadonlyMap<string, GtfsStop>
-): Record<string, readonly [number, string][]> {
-  const byTrip = new Map<string, { sequence: number; arrivalSeconds: number; stopName: string }[]>()
+): Record<string, readonly [string, number, number][]> {
+  const byTrip = new Map<string, { sequence: number; stopName: string; lat: number; lng: number }[]>()
 
   for (const st of stopTimes) {
-    if (!st.arrivalTime) continue
-    const arrivalSeconds = gtfsTimeToSeconds(st.arrivalTime)
-    if (arrivalSeconds < 0) continue
-    const stopName = stops.get(st.stopId)?.name
-    if (!stopName) continue
+    const stop = stops.get(st.stopId)
+    if (!stop) continue
 
     const existing = byTrip.get(st.tripId)
-    const entry = { sequence: st.sequence, arrivalSeconds, stopName }
+    const entry = { sequence: st.sequence, stopName: stop.name, lat: stop.lat, lng: stop.lng }
     if (existing) {
       existing.push(entry)
     } else {
@@ -51,10 +42,18 @@ function buildTripStops(
     }
   }
 
-  const result: Record<string, [number, string][]> = {}
+  const result: Record<string, [string, number, number][]> = {}
   for (const [tripId, entries] of byTrip) {
     entries.sort((a, b) => a.sequence - b.sequence)
-    result[tripId] = entries.map((e) => [e.arrivalSeconds, e.stopName])
+    // Deduplicate consecutive stops (same stop appears once)
+    const deduped: [string, number, number][] = []
+    for (const e of entries) {
+      const last = deduped[deduped.length - 1]
+      if (!last || last[0] !== e.stopName) {
+        deduped.push([e.stopName, e.lat, e.lng])
+      }
+    }
+    result[tripId] = deduped
   }
 
   return result
