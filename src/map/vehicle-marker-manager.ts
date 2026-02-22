@@ -86,6 +86,7 @@ function attachPopupHandler(map: maplibregl.Map, entry: MarkerEntry): void {
       headsign: vehicle.headsign,
       directionId: vehicle.directionId,
       vehicleId: vehicle.vehicleId,
+      nextStopName: vehicle.nextStopName,
     })
 
     if (activePopup) {

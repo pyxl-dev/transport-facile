@@ -29,6 +29,7 @@ function decodeVehiclePositions(
         lng: vehicle.position?.longitude ?? 0,
         bearing: vehicle.position?.bearing ?? 0,
         timestamp: toNumber(vehicle.timestamp),
+        stopId: vehicle.stopId || undefined,
       }
     })
 }

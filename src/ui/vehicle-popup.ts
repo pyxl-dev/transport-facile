@@ -5,6 +5,7 @@ export interface VehiclePopupProps {
   readonly headsign: string
   readonly directionId: string
   readonly vehicleId: string
+  readonly nextStopName?: string
 }
 
 function getLineTypeLabel(type: string): string {
@@ -30,6 +31,13 @@ export function createVehiclePopupContent(props: VehiclePopupProps): string {
   const typeIcon = getLineTypeIcon(props.lineType)
   const headsign = formatHeadsign(props.lineName, props.headsign, props.directionId)
 
+  const nextStopHtml = props.nextStopName
+    ? `<div class="vehicle-popup__next-stop">
+    <span class="vehicle-popup__next-stop-label">Prochain arr\u00eat</span>
+    <span class="vehicle-popup__next-stop-name">${props.nextStopName}</span>
+  </div>`
+    : ''
+
   return `<div class="vehicle-popup">
   <div class="vehicle-popup__header">
     <span class="vehicle-popup__icon">${typeIcon}</span>
@@ -41,6 +49,7 @@ export function createVehiclePopupContent(props: VehiclePopupProps): string {
   <div class="vehicle-popup__direction">
     ${headsign}
   </div>
+  ${nextStopHtml}
   <div class="vehicle-popup__id">
     ${props.vehicleId}
   </div>

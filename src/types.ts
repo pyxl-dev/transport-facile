@@ -18,6 +18,7 @@ export interface Vehicle {
   readonly headsign: string
   readonly directionId: string
   readonly timestamp: number
+  readonly nextStopName?: string
 }
 
 export interface Stop {
@@ -63,6 +64,7 @@ export interface RawVehiclePosition {
   readonly lng: number
   readonly bearing: number
   readonly timestamp: number
+  readonly stopId?: string
 }
 
 export interface ApiResponse<T> {

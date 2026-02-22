@@ -28,9 +28,11 @@ function createChipElement(
   isFavorite: boolean,
   onToggle: () => void,
   onToggleFavorite: () => void
-): HTMLButtonElement {
-  const chip = document.createElement('button')
+): HTMLDivElement {
+  const chip = document.createElement('div')
   chip.className = `filter-chip${isSelected ? ' filter-chip--active' : ''}`
+  chip.setAttribute('role', 'button')
+  chip.setAttribute('tabindex', '0')
   chip.setAttribute('aria-pressed', String(isSelected))
   chip.setAttribute('data-line-id', line.id)
 
@@ -52,7 +54,11 @@ function createChipElement(
     chip.style.color = line.color
   }
 
-  chip.addEventListener('click', onToggle)
+  chip.addEventListener('click', (e) => {
+    if (!(e.target as HTMLElement).closest('.favorite-star')) {
+      onToggle()
+    }
+  })
 
   return chip
 }

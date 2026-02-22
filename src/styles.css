@@ -329,6 +329,30 @@ html, body {
   color: #94a3b8;
 }
 
+.vehicle-popup__next-stop {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 6px 0 4px;
+  padding: 5px 8px;
+  background: #f1f5f9;
+  border-radius: 6px;
+}
+
+.vehicle-popup__next-stop-label {
+  font-size: 10px;
+  color: #64748b;
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+.vehicle-popup__next-stop-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: #1e293b;
+}
+
 /* MapLibre popup overrides */
 .maplibregl-popup-content {
   padding: 10px 14px;
