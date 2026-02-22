@@ -14,7 +14,11 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "refresh-overpass": "tsx server/scripts/refresh-overpass.ts"
+    "refresh-overpass": "tsx server/scripts/refresh-overpass.ts",
+    "build:gtfs": "tsx scripts/build-gtfs-data.ts",
+    "build:cf": "pnpm build && pnpm build:gtfs",
+    "deploy:cf": "pnpm build:cf && wrangler pages deploy",
+    "dev:cf": "pnpm build:cf && wrangler pages dev"
   },
   "dependencies": {
     "adm-zip": "^0.5.16",
