@@ -70,6 +70,7 @@ function createVehicle(overrides: Partial<Vehicle> = {}): Vehicle {
       color: '#005CA9',
     },
     headsign: 'Mosson',
+    directionId: '0',
     timestamp: Date.now(),
     ...overrides,
   }

@@ -86,10 +86,35 @@ export function initStopLayer(map: maplibregl.Map): void {
     filter: ['!', ['has', 'point_count']],
     minzoom: STOP_VISIBLE_ZOOM,
     paint: {
-      'circle-radius': 5,
-      'circle-color': '#64748b',
-      'circle-stroke-width': 1,
+      'circle-radius': [
+        'interpolate', ['linear'], ['zoom'],
+        14, 6,
+        16, 9,
+        18, 12,
+      ],
+      'circle-color': '#1e293b',
+      'circle-stroke-width': 2,
       'circle-stroke-color': '#ffffff',
+    },
+  })
+
+  map.addLayer({
+    id: 'stop-labels',
+    type: 'symbol',
+    source: STOP_SOURCE,
+    filter: ['!', ['has', 'point_count']],
+    minzoom: 16,
+    layout: {
+      'text-field': ['get', 'name'],
+      'text-size': 12,
+      'text-offset': [0, 1.5],
+      'text-anchor': 'top',
+      'text-max-width': 8,
+    },
+    paint: {
+      'text-color': '#1e293b',
+      'text-halo-color': '#ffffff',
+      'text-halo-width': 1.5,
     },
   })
 

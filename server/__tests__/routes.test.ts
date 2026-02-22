@@ -6,6 +6,7 @@ import type {
   GtfsTrip,
   GtfsStop,
   Vehicle,
+  StopTimeEntry,
 } from '../../src/types.js'
 import type { Config } from '../config.js'
 import { createApp } from '../app.js'
@@ -60,6 +61,15 @@ function createTestStaticData(): GtfsStaticData {
   return { routes, trips, stops }
 }
 
+function createTestStopTimes(): StopTimeEntry[] {
+  return [
+    { tripId: 't1', stopId: 's1', sequence: 1 },
+    { tripId: 't1', stopId: 's2', sequence: 2 },
+    { tripId: 't1', stopId: 's3', sequence: 3 },
+    { tripId: 't2', stopId: 's4', sequence: 1 },
+  ]
+}
+
 function createTestVehicles(): Vehicle[] {
   return [
     {
@@ -68,6 +78,7 @@ function createTestVehicles(): Vehicle[] {
       bearing: 90,
       line: { id: 'r1', name: 'T1', type: 'tram', color: '#0055A4' },
       headsign: 'Mosson',
+      directionId: '0',
       timestamp: Date.now(),
     },
     {
@@ -76,6 +87,7 @@ function createTestVehicles(): Vehicle[] {
       bearing: 180,
       line: { id: 'r3', name: '10', type: 'bus', color: '#00A651' },
       headsign: 'Centre',
+      directionId: '1',
       timestamp: Date.now(),
     },
     {
@@ -84,6 +96,7 @@ function createTestVehicles(): Vehicle[] {
       bearing: 270,
       line: { id: 'r1', name: 'T1', type: 'tram', color: '#0055A4' },
       headsign: 'Odysseum',
+      directionId: '1',
       timestamp: Date.now(),
     },
   ]
@@ -267,7 +280,7 @@ describe('GET /api/stops', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    app = createApp(createTestStaticData(), createTestConfig())
+    app = createApp(createTestStaticData(), createTestConfig(), undefined, createTestStopTimes())
   })
 
   it('should return all stops when no bbox is provided', async () => {

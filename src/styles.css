@@ -403,16 +403,21 @@ html, body {
 .stop-arrival__list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  max-height: 240px;
+  gap: 10px;
+  max-height: 280px;
   overflow-y: auto;
 }
 
-.stop-arrival__row {
+.stop-arrival__group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stop-arrival__header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 3px 0;
+  gap: 6px;
 }
 
 .stop-arrival__line {
@@ -429,13 +434,20 @@ html, body {
   flex-shrink: 0;
 }
 
-.stop-arrival__headsign {
-  flex: 1;
+.stop-arrival__direction {
   font-size: 13px;
+  font-weight: 500;
   color: #334155;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.stop-arrival__times {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-left: 38px;
 }
 
 .stop-arrival__time {
@@ -443,9 +455,9 @@ html, body {
   font-weight: 600;
   color: #1e293b;
   white-space: nowrap;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
 }
 
 .stop-arrival__rt {

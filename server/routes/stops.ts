@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from 'express'
 import { z } from 'zod'
-import type { ApiResponse, Stop, GtfsStaticData, BBox, GtfsStop } from '../../src/types.js'
+import type { ApiResponse, Stop, GtfsStaticData, BBox, GtfsStop, StopTimeEntry } from '../../src/types.js'
 
 export const stopsRouter = Router()
 
@@ -59,7 +59,12 @@ stopsRouter.get('/', (req: Request, res: Response<ApiResponse<Stop[]>>) => {
       bbox = parsed.data
     }
 
-    const allStops = Array.from(staticData.stops.values()).map(gtfsStopToStop)
+    const stopTimes = req.app.locals.stopTimes as readonly StopTimeEntry[]
+    const activeStopIds = new Set(stopTimes.map((st) => st.stopId))
+
+    const allStops = Array.from(staticData.stops.values())
+      .filter((s) => activeStopIds.has(s.stopId))
+      .map(gtfsStopToStop)
 
     const filtered = bbox ? allStops.filter((stop) => isWithinBBox(stop, bbox)) : allStops
 

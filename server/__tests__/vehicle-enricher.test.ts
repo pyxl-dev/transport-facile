@@ -95,6 +95,7 @@ describe('vehicle-enricher', () => {
           color: '#0074CE',
         },
         headsign: 'Odysseum',
+        directionId: '0',
         timestamp: 1700000000,
       })
     })

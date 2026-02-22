@@ -38,6 +38,7 @@ export function enrichVehicles(
           color: route.color,
         },
         headsign: trip.headsign,
+        directionId: trip.directionId,
         timestamp: raw.timestamp,
       }
 

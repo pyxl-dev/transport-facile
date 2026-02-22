@@ -84,6 +84,7 @@ function attachPopupHandler(map: maplibregl.Map, entry: MarkerEntry): void {
       lineType: vehicle.line.type,
       color: vehicle.line.color,
       headsign: vehicle.headsign,
+      directionId: vehicle.directionId,
       vehicleId: vehicle.vehicleId,
     })
 

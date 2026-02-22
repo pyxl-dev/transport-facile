@@ -25,6 +25,10 @@ function resolveRouteType(gtfsType: number): 'tram' | 'bus' {
   return gtfsType === 0 ? 'tram' : 'bus'
 }
 
+function resolveDirection(directionId: string): 'A' | 'B' {
+  return directionId === '0' ? 'A' : 'B'
+}
+
 export interface StopArrivalsOptions {
   readonly maxArrivals?: number
   readonly maxMinutes?: number
@@ -100,6 +104,7 @@ export function buildStopArrivals(
       lineName: route.shortName,
       lineColor: route.color,
       lineType: resolveRouteType(route.type),
+      direction: resolveDirection(trip.directionId),
       headsign: trip.headsign,
       arrivalMinutes,
       isRealTime,
@@ -138,6 +143,7 @@ export function buildStopArrivals(
       lineName: route.shortName,
       lineColor: route.color,
       lineType: resolveRouteType(route.type),
+      direction: resolveDirection(trip.directionId),
       headsign: trip.headsign,
       arrivalMinutes,
       isRealTime: true,

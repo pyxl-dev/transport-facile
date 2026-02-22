@@ -30,6 +30,7 @@ function createMockVehicle(overrides: Partial<Vehicle> = {}): Vehicle {
     bearing: 90,
     line: createMockLine(),
     headsign: 'Mosson',
+    directionId: '0',
     timestamp: 1700000000,
     ...overrides,
   }

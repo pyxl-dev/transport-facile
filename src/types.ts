@@ -16,6 +16,7 @@ export interface Vehicle {
   readonly bearing: number
   readonly line: LineInfo
   readonly headsign: string
+  readonly directionId: string
   readonly timestamp: number
 }
 
@@ -115,6 +116,7 @@ export interface StopArrival {
   readonly lineName: string
   readonly lineColor: string
   readonly lineType: 'tram' | 'bus'
+  readonly direction: 'A' | 'B'
   readonly headsign: string
   readonly arrivalMinutes: number
   readonly isRealTime: boolean
