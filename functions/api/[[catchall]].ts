@@ -48,6 +48,7 @@ let stopRoutesCache: Readonly<Record<string, readonly string[]>> | null = null
 let routePathsCache: readonly RoutePath[] | null = null
 let tripStopsCache: Readonly<Record<string, readonly [string, number, number][]>> | null = null
 let tripShapesCache: TripShapesData | null = null
+let groupedStopsCache: readonly Stop[] | null = null
 
 // --- Asset loading helpers ---
 
@@ -100,6 +101,12 @@ async function loadTripStops(
   if (tripStopsCache) return tripStopsCache
   tripStopsCache = await (await fetchAsset(env, url, '/data/gtfs-trip-stops.json')).json() as Record<string, [string, number, number][]>
   return tripStopsCache
+}
+
+async function loadGroupedStops(env: Env, url: string): Promise<readonly Stop[]> {
+  if (groupedStopsCache) return groupedStopsCache
+  groupedStopsCache = await (await fetchAsset(env, url, '/data/gtfs-grouped-stops.json')).json() as Stop[]
+  return groupedStopsCache
 }
 
 async function loadTripShapes(env: Env, url: string): Promise<TripShapesData> {
@@ -313,10 +320,7 @@ async function handleStops(
   env: Env,
   requestUrl: string
 ): Promise<Response> {
-  const [stops, stopRoutes] = await Promise.all([
-    loadStops(env, requestUrl),
-    loadStopRoutes(env, requestUrl),
-  ])
+  const allStops = await loadGroupedStops(env, requestUrl)
 
   const bboxParam = url.searchParams.get('bbox')
   let bbox: BBox | undefined
@@ -328,15 +332,6 @@ async function handleStops(
     }
     bbox = parsed.data
   }
-
-  const allStops: Stop[] = Array.from(stops.values())
-    .filter((s) => stopRoutes[s.stopId] !== undefined)
-    .map((s) => ({
-      stopId: s.stopId,
-      name: s.name,
-      position: { lat: s.lat, lng: s.lng },
-      routeIds: stopRoutes[s.stopId] ?? [],
-    }))
 
   const filtered = bbox
     ? allStops.filter(

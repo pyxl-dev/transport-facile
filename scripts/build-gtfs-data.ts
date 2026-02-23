@@ -4,7 +4,7 @@ import { loadConfig } from '../server/config.js'
 import { loadGtfsStaticData } from '../server/services/gtfs-static.js'
 import { buildRoutePaths, buildTripShapeMap, buildDefaultShapeMap } from '../server/services/route-path-builder.js'
 import { loadOverpassData } from '../server/services/overpass-cache.js'
-import type { GtfsStop, GtfsTrip, StopTimeEntry } from '../src/types.js'
+import type { GtfsStop, GtfsTrip, Stop, StopTimeEntry } from '../src/types.js'
 
 function mapToObject<V>(map: ReadonlyMap<string, V>): Record<string, V> {
   const obj: Record<string, V> = {}
@@ -57,6 +57,46 @@ function buildTripStops(
   }
 
   return result
+}
+
+export function buildGroupedStops(
+  stops: ReadonlyMap<string, GtfsStop>,
+  stopRoutes: Readonly<Record<string, string[]>>
+): readonly Stop[] {
+  const groups = new Map<string, { stopIds: string[]; lats: number[]; lngs: number[]; routeIds: Set<string> }>()
+
+  for (const s of stops.values()) {
+    const routes = stopRoutes[s.stopId]
+    if (!routes) continue
+
+    const existing = groups.get(s.name)
+    if (existing) {
+      existing.stopIds.push(s.stopId)
+      existing.lats.push(s.lat)
+      existing.lngs.push(s.lng)
+      for (const r of routes) {
+        existing.routeIds.add(r)
+      }
+    } else {
+      groups.set(s.name, {
+        stopIds: [s.stopId],
+        lats: [s.lat],
+        lngs: [s.lng],
+        routeIds: new Set(routes),
+      })
+    }
+  }
+
+  return Array.from(groups.entries()).map(([name, group]) => ({
+    stopId: group.stopIds[0],
+    stopIds: group.stopIds,
+    name,
+    position: {
+      lat: group.lats.reduce((sum, v) => sum + v, 0) / group.lats.length,
+      lng: group.lngs.reduce((sum, v) => sum + v, 0) / group.lngs.length,
+    },
+    routeIds: [...group.routeIds],
+  }))
 }
 
 const ARRIVALS_CHUNKS = 50
@@ -175,6 +215,14 @@ async function main() {
     JSON.stringify(stopRoutes)
   )
 
+  // Grouped stops (stops merged by name with centroid position)
+  console.log('Building grouped stops...')
+  const groupedStops = buildGroupedStops(result.staticData.stops, stopRoutes)
+  writeFileSync(
+    join(outDir, 'gtfs-grouped-stops.json'),
+    JSON.stringify(groupedStops)
+  )
+
   // Arrivals chunks (used by /api/stops/:stopId/arrivals)
   console.log(`Building ${ARRIVALS_CHUNKS} arrivals chunks...`)
   const arrivalsDir = join(outDir, 'arrivals')
@@ -194,6 +242,7 @@ async function main() {
   console.log(`  Stops: ${result.staticData.stops.size}`)
   console.log(`  Stop times: ${result.stopTimes.length}`)
   console.log(`  Active stops: ${Object.keys(stopRoutes).length}`)
+  console.log(`  Grouped stops: ${groupedStops.length} (from ${result.staticData.stops.size} raw)`)
   console.log(`  Route paths: ${routePaths.length}`)
   console.log(`  Trip-shapes: ${tripShapeMap.size} trips, ${defaultShapeMap.size} defaults (${(tripShapesJson.length / 1024 / 1024).toFixed(1)} MB)`)
   console.log(`  Trip-stops index: ${Object.keys(tripStops).length} trips (${(tripStopsJson.length / 1024 / 1024).toFixed(1)} MB)`)
