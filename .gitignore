@@ -6,4 +6,3 @@ dist/
 coverage/
 .vite/
 data/
-!data/overpass-cache.json
