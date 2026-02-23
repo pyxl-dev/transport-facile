@@ -4,9 +4,10 @@ import { MAP_CENTER, MAP_ZOOM } from '../config'
 export function createMap(container: string | HTMLElement): maplibregl.Map {
   const map = new maplibregl.Map({
     container,
-    style: 'https://tiles.openfreemap.org/styles/liberty',
+    style: 'https://tiles.openfreemap.org/styles/bright',
     center: [MAP_CENTER.lng, MAP_CENTER.lat],
     zoom: MAP_ZOOM,
+    maxPitch: 0,
     attributionControl: {},
   })
 
