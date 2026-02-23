@@ -11,10 +11,13 @@ import {
   toggleFavorite,
   setFavoriteLines,
   clearFavorites,
+  addFavoriteStop,
+  removeFavoriteStop,
+  setFavoriteStops,
   getFilteredVehicles,
   getFilteredRoutePaths,
 } from '../state'
-import type { Vehicle, LineInfo, Stop, RoutePath, TripShapesData } from '../types'
+import type { Vehicle, LineInfo, Stop, RoutePath, TripShapesData, FavoriteStop } from '../types'
 
 function createMockLine(overrides: Partial<LineInfo> = {}): LineInfo {
   return {
@@ -513,5 +516,126 @@ describe('getFilteredRoutePaths', () => {
     const shapeIds = result.map((rp) => rp.shapeId)
     expect(shapeIds).toContain('shape-A')
     expect(shapeIds).toContain('shape-B')
+  })
+})
+
+function createMockFavoriteStop(overrides: Partial<FavoriteStop> = {}): FavoriteStop {
+  return {
+    stopId: 's-001',
+    stopIds: ['s-001', 's-002'],
+    name: 'Comédie',
+    position: { lat: 43.6085, lng: 3.8795 },
+    ...overrides,
+  }
+}
+
+describe('addFavoriteStop', () => {
+  it('should add a stop to favoriteStops', () => {
+    const store = createStore()
+    const fav = createMockFavoriteStop()
+
+    store.setState(addFavoriteStop(fav))
+
+    expect(store.getState().favoriteStops).toHaveLength(1)
+    expect(store.getState().favoriteStops[0].stopId).toBe('s-001')
+  })
+
+  it('should not add duplicate stop (same stopId)', () => {
+    const store = createStore()
+    const fav = createMockFavoriteStop()
+
+    store.setState(addFavoriteStop(fav))
+    store.setState(addFavoriteStop(fav))
+
+    expect(store.getState().favoriteStops).toHaveLength(1)
+  })
+
+  it('should return same state reference on duplicate', () => {
+    const store = createStore()
+    const fav = createMockFavoriteStop()
+    store.setState(addFavoriteStop(fav))
+    const prevState = store.getState()
+
+    store.setState(addFavoriteStop(fav))
+
+    expect(store.getState()).toBe(prevState)
+  })
+
+  it('should allow multiple different stops', () => {
+    const store = createStore()
+
+    store.setState(addFavoriteStop(createMockFavoriteStop({ stopId: 's-001', name: 'A' })))
+    store.setState(addFavoriteStop(createMockFavoriteStop({ stopId: 's-002', name: 'B' })))
+
+    expect(store.getState().favoriteStops).toHaveLength(2)
+  })
+
+  it('should not mutate previous array', () => {
+    const store = createStore()
+    store.setState(addFavoriteStop(createMockFavoriteStop({ stopId: 's-001' })))
+    const prevFavs = store.getState().favoriteStops
+
+    store.setState(addFavoriteStop(createMockFavoriteStop({ stopId: 's-002' })))
+
+    expect(prevFavs).toHaveLength(1)
+  })
+})
+
+describe('removeFavoriteStop', () => {
+  it('should remove a stop by stopId', () => {
+    const store = createStore()
+    store.setState(addFavoriteStop(createMockFavoriteStop({ stopId: 's-001' })))
+    store.setState(addFavoriteStop(createMockFavoriteStop({ stopId: 's-002', name: 'Other' })))
+
+    store.setState(removeFavoriteStop('s-001'))
+
+    expect(store.getState().favoriteStops).toHaveLength(1)
+    expect(store.getState().favoriteStops[0].stopId).toBe('s-002')
+  })
+
+  it('should return empty array when removing last stop', () => {
+    const store = createStore()
+    store.setState(addFavoriteStop(createMockFavoriteStop()))
+
+    store.setState(removeFavoriteStop('s-001'))
+
+    expect(store.getState().favoriteStops).toEqual([])
+  })
+
+  it('should not mutate previous array', () => {
+    const store = createStore()
+    store.setState(addFavoriteStop(createMockFavoriteStop()))
+    const prevFavs = store.getState().favoriteStops
+
+    store.setState(removeFavoriteStop('s-001'))
+
+    expect(prevFavs).toHaveLength(1)
+  })
+})
+
+describe('setFavoriteStops', () => {
+  it('should replace entire favoriteStops array', () => {
+    const store = createStore()
+    store.setState(addFavoriteStop(createMockFavoriteStop({ stopId: 's-001' })))
+
+    const newFavs = [
+      createMockFavoriteStop({ stopId: 's-010', name: 'X' }),
+      createMockFavoriteStop({ stopId: 's-020', name: 'Y' }),
+    ]
+    store.setState(setFavoriteStops(newFavs))
+
+    const result = store.getState().favoriteStops
+    expect(result).toHaveLength(2)
+    expect(result[0].stopId).toBe('s-010')
+    expect(result[1].stopId).toBe('s-020')
+  })
+
+  it('should allow setting empty array', () => {
+    const store = createStore()
+    store.setState(addFavoriteStop(createMockFavoriteStop()))
+
+    store.setState(setFavoriteStops([]))
+
+    expect(store.getState().favoriteStops).toEqual([])
   })
 })

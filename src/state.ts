@@ -1,13 +1,15 @@
-import type { AppState, Vehicle, LineInfo, Stop, RoutePath, TripShapesData } from './types'
+import type { AppState, Vehicle, LineInfo, Stop, RoutePath, TripShapesData, FavoriteStop } from './types'
 
 const initialState: AppState = {
   vehicles: [],
   lines: [],
   stops: [],
+  allStops: [],
   routePaths: [],
   tripShapesData: null,
   selectedLines: new Set<string>(),
   favoriteLines: new Set<string>(),
+  favoriteStops: [],
   isLoading: false,
   lastUpdated: null,
 }
@@ -55,6 +57,12 @@ export function setStops(
   stops: readonly Stop[]
 ): (state: AppState) => AppState {
   return (state) => ({ ...state, stops })
+}
+
+export function setAllStops(
+  allStops: readonly Stop[]
+): (state: AppState) => AppState {
+  return (state) => ({ ...state, allStops })
 }
 
 export function setLoading(
@@ -115,6 +123,32 @@ export function setFavoriteLines(
 
 export function clearFavorites(): (state: AppState) => AppState {
   return (state) => ({ ...state, favoriteLines: new Set<string>() })
+}
+
+export function addFavoriteStop(
+  stop: FavoriteStop
+): (state: AppState) => AppState {
+  return (state) => {
+    if (state.favoriteStops.some((s) => s.stopId === stop.stopId)) {
+      return state
+    }
+    return { ...state, favoriteStops: [...state.favoriteStops, stop] }
+  }
+}
+
+export function removeFavoriteStop(
+  stopId: string
+): (state: AppState) => AppState {
+  return (state) => ({
+    ...state,
+    favoriteStops: state.favoriteStops.filter((s) => s.stopId !== stopId),
+  })
+}
+
+export function setFavoriteStops(
+  stops: readonly FavoriteStop[]
+): (state: AppState) => AppState {
+  return (state) => ({ ...state, favoriteStops: stops })
 }
 
 export function getFilteredVehicles(state: AppState): readonly Vehicle[] {

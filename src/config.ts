@@ -7,6 +7,10 @@ export const API_BASE_URL = '/api'
 export const TRAM_LINES = ['T1', 'T2', 'T3', 'T4', 'T5'] as const
 
 export const FAVORITES_STORAGE_KEY = 'tam-favorite-lines'
+export const FAVORITE_STOPS_STORAGE_KEY = 'tam-favorite-stops'
+export const SEARCH_MIN_CHARS = 2
+export const SEARCH_MAX_RESULTS = 8
+export const SEARCH_FLY_ZOOM = 17
 
 export const DEFAULT_LINE_COLORS: Record<string, string> = {
   T1: '#005CA9',

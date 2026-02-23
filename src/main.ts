@@ -8,10 +8,12 @@ import {
   setVehicles,
   setLines,
   setStops,
+  setAllStops,
   setRoutePaths,
   setTripShapesData,
   setLoading,
   setFavoriteLines,
+  setFavoriteStops,
   getFilteredVehicles,
   getFilteredRoutePaths,
   getFilteredStops,
@@ -19,7 +21,10 @@ import {
 import { fetchVehicles, fetchLines, fetchStops, fetchRoutePaths, fetchTripShapes } from './services/api'
 import { createPollingService } from './services/polling'
 import { loadFavorites, saveFavorites } from './services/favorites-storage'
+import { loadFavoriteStops, saveFavoriteStops } from './services/stop-favorites-storage'
 import { createFilterPanel } from './ui/filter-panel'
+import { createSearchBar } from './ui/search-bar'
+import { createFavoritesStopsPanel } from './ui/favorites-stops-panel'
 import { createLoadingIndicator } from './ui/loading'
 import { createRefreshTimer } from './ui/refresh-timer'
 import { POLLING_INTERVAL } from './config'
@@ -45,6 +50,8 @@ function init(): void {
     initStopLayer(map, store)
 
     createFilterPanel(uiRoot, store)
+    createSearchBar(uiRoot, store, map)
+    createFavoritesStopsPanel(uiRoot, store, map)
 
     store.subscribe((state) => {
       const filteredVehicles = getFilteredVehicles(state)
@@ -82,6 +89,7 @@ function init(): void {
       ])
       store.setState(setLines(lines))
       store.setState(setStops(stops))
+      store.setState(setAllStops(stops))
       store.setState(setRoutePaths(routePaths))
       store.setState(setTripShapesData(tripShapesData))
     }
@@ -92,11 +100,24 @@ function init(): void {
       store.setState((state) => ({ ...state, selectedLines: new Set(state.favoriteLines) }))
     }
 
+    const storedStopFavorites = loadFavoriteStops()
+    if (storedStopFavorites.length > 0) {
+      store.setState(setFavoriteStops(storedStopFavorites))
+    }
+
     let prevFavorites = store.getState().favoriteLines
     store.subscribe((state) => {
       if (state.favoriteLines !== prevFavorites) {
         prevFavorites = state.favoriteLines
         saveFavorites(state.favoriteLines)
+      }
+    })
+
+    let prevStopFavorites = store.getState().favoriteStops
+    store.subscribe((state) => {
+      if (state.favoriteStops !== prevStopFavorites) {
+        prevStopFavorites = state.favoriteStops
+        saveFavoriteStops(state.favoriteStops)
       }
     })
 

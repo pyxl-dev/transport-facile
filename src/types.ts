@@ -80,10 +80,12 @@ export interface AppState {
   readonly vehicles: readonly Vehicle[]
   readonly lines: readonly LineInfo[]
   readonly stops: readonly Stop[]
+  readonly allStops: readonly Stop[]
   readonly routePaths: readonly RoutePath[]
   readonly tripShapesData: TripShapesData | null
   readonly selectedLines: ReadonlySet<string>
   readonly favoriteLines: ReadonlySet<string>
+  readonly favoriteStops: readonly FavoriteStop[]
   readonly isLoading: boolean
   readonly lastUpdated: number | null
 }
@@ -132,4 +134,11 @@ export interface StopArrival {
   readonly headsign: string
   readonly arrivalMinutes: number
   readonly isRealTime: boolean
+}
+
+export interface FavoriteStop {
+  readonly stopId: string
+  readonly stopIds: readonly string[]
+  readonly name: string
+  readonly position: Position
 }
