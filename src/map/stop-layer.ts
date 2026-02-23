@@ -138,7 +138,13 @@ export function initStopLayer(map: maplibregl.Map, store: Store): void {
 
     const stopName = String(properties.name)
     const stopId = String(properties.stopId)
-    const stopIds: readonly string[] = JSON.parse(String(properties.stopIds))
+    let stopIds: readonly string[]
+    try {
+      const parsed = JSON.parse(String(properties.stopIds))
+      stopIds = Array.isArray(parsed) ? parsed : [stopId]
+    } catch {
+      stopIds = [stopId]
+    }
 
     openStopPopup(map, store, coordinates, stopName, stopId, stopIds)
   })

@@ -34,7 +34,14 @@ export function fetchLines(): Promise<LineInfo[]> {
   return fetchJson<LineInfo[]>(`${API_BASE_URL}/lines`)
 }
 
-export function fetchStops(bbox?: {
+function normalizeStops(stops: Stop[]): Stop[] {
+  return stops.map((s) => ({
+    ...s,
+    stopIds: Array.isArray(s.stopIds) && s.stopIds.length > 0 ? s.stopIds : [s.stopId],
+  }))
+}
+
+export async function fetchStops(bbox?: {
   minLng: number
   minLat: number
   maxLng: number
@@ -45,7 +52,8 @@ export function fetchStops(bbox?: {
         bbox: `${bbox.minLng},${bbox.minLat},${bbox.maxLng},${bbox.maxLat}`,
       }
     : undefined
-  return fetchJson<Stop[]>(`${API_BASE_URL}/stops`, params)
+  const stops = await fetchJson<Stop[]>(`${API_BASE_URL}/stops`, params)
+  return normalizeStops(stops)
 }
 
 export function fetchRoutePaths(): Promise<RoutePath[]> {
