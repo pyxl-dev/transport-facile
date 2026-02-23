@@ -1,4 +1,4 @@
-import maplibregl from 'maplibre-gl'
+import type maplibregl from 'maplibre-gl'
 import type { Store } from '../state'
 import { removeFavoriteStop } from '../state'
 import type { FavoriteStop } from '../types'
@@ -6,15 +6,6 @@ import { SEARCH_FLY_ZOOM } from '../config'
 import { openStopPopup } from '../map/stop-popup-opener'
 
 const STAR_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`
-
-let pendingMoveEnd: (() => void) | null = null
-
-function cancelPendingMoveEnd(map: maplibregl.Map): void {
-  if (pendingMoveEnd) {
-    map.off('moveend', pendingMoveEnd)
-    pendingMoveEnd = null
-  }
-}
 
 function renderFavoriteItem(
   fav: FavoriteStop,
@@ -40,15 +31,13 @@ function renderFavoriteItem(
   })
 
   item.addEventListener('click', () => {
-    cancelPendingMoveEnd(map)
     const coords: [number, number] = [fav.position.lng, fav.position.lat]
-    map.flyTo({ center: coords, zoom: SEARCH_FLY_ZOOM })
-    const handler = (): void => {
-      pendingMoveEnd = null
-      openStopPopup(map, store, coords, fav.name, fav.stopId, fav.stopIds, { skipLineFilter: true })
+    const matchingStop = store.getState().allStops.find((s) => s.stopId === fav.stopId)
+    if (matchingStop) {
+      store.setState((state) => ({ ...state, selectedLines: new Set(matchingStop.routeIds) }))
     }
-    pendingMoveEnd = handler
-    map.once('moveend', handler)
+    map.flyTo({ center: coords, zoom: SEARCH_FLY_ZOOM })
+    openStopPopup(map, store, coords, fav.name, fav.stopId, fav.stopIds, { skipLineFilter: true })
     closePanel()
   })
 

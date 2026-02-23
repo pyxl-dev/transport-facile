@@ -86,15 +86,6 @@ export function createSearchBar(
     closeResults()
   }
 
-  let pendingMoveEnd: (() => void) | null = null
-
-  function cancelPendingMoveEnd(): void {
-    if (pendingMoveEnd) {
-      map.off('moveend', pendingMoveEnd)
-      pendingMoveEnd = null
-    }
-  }
-
   function renderResults(stops: readonly Stop[]): void {
     results.innerHTML = ''
 
@@ -120,15 +111,10 @@ export function createSearchBar(
       item.appendChild(linesEl)
 
       item.addEventListener('click', () => {
-        cancelPendingMoveEnd()
         const coords: [number, number] = [stop.position.lng, stop.position.lat]
+        store.setState((state) => ({ ...state, selectedLines: new Set(stop.routeIds) }))
         map.flyTo({ center: coords, zoom: SEARCH_FLY_ZOOM })
-        const handler = (): void => {
-          pendingMoveEnd = null
-          openStopPopup(map, store, coords, stop.name, stop.stopId, stop.stopIds, { skipLineFilter: true })
-        }
-        pendingMoveEnd = handler
-        map.once('moveend', handler)
+        openStopPopup(map, store, coords, stop.name, stop.stopId, stop.stopIds, { skipLineFilter: true })
         clearInput()
       })
 

@@ -49,7 +49,7 @@ export function openStopPopup(
 ): void {
   const isFavorite = store.getState().favoriteStops.some((s) => s.stopId === stopId)
 
-  const popup = new maplibregl.Popup({ maxWidth: '320px' })
+  const popup = new maplibregl.Popup({ maxWidth: '320px', closeButton: false })
     .setLngLat(coordinates)
     .setHTML(createStopPopupContent(stopName, isFavorite))
     .addTo(map)
