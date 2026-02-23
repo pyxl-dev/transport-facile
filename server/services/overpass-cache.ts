@@ -6,37 +6,49 @@ type Coordinates = readonly (readonly [number, number])[]
 
 interface OverpassCacheData {
   readonly fetchedAt: string
-  readonly routes: Record<string, readonly (readonly [number, number])[]>
+  readonly routes: Record<string, readonly (readonly (readonly [number, number])[])[]>
 }
 
 const DEFAULT_CACHE_PATH = 'data/overpass-cache.json'
 
 function mapToRecord(
-  map: ReadonlyMap<string, Coordinates>
-): Record<string, readonly (readonly [number, number])[]> {
-  const record: Record<string, readonly (readonly [number, number])[]> = {}
+  map: ReadonlyMap<string, readonly Coordinates[]>
+): Record<string, readonly Coordinates[]> {
+  const record: Record<string, readonly Coordinates[]> = {}
   for (const [key, value] of map) {
     record[key] = value
   }
   return record
 }
 
+function isOldCacheFormat(value: unknown): boolean {
+  if (!Array.isArray(value) || value.length === 0) {
+    return false
+  }
+  const first = value[0]
+  return Array.isArray(first) && typeof first[0] === 'number'
+}
+
 function recordToMap(
-  record: Record<string, readonly (readonly [number, number])[]>
-): ReadonlyMap<string, Coordinates> {
-  const map = new Map<string, Coordinates>()
+  record: Record<string, unknown>
+): ReadonlyMap<string, readonly Coordinates[]> {
+  const map = new Map<string, readonly Coordinates[]>()
   for (const [key, value] of Object.entries(record)) {
-    map.set(key, value)
+    if (isOldCacheFormat(value)) {
+      map.set(key, [value as Coordinates])
+    } else {
+      map.set(key, value as readonly Coordinates[])
+    }
   }
   return map
 }
 
 export async function loadCacheFromDisk(
   cachePath: string = DEFAULT_CACHE_PATH
-): Promise<{ routes: ReadonlyMap<string, Coordinates>; fetchedAt: string } | undefined> {
+): Promise<{ routes: ReadonlyMap<string, readonly Coordinates[]>; fetchedAt: string } | undefined> {
   try {
     const raw = await readFile(cachePath, 'utf-8')
-    const data: OverpassCacheData = JSON.parse(raw)
+    const data = JSON.parse(raw) as { fetchedAt?: string; routes?: Record<string, unknown> }
 
     if (!data.fetchedAt || !data.routes) {
       return undefined
@@ -52,7 +64,7 @@ export async function loadCacheFromDisk(
 }
 
 export async function saveCacheToDisk(
-  routes: ReadonlyMap<string, Coordinates>,
+  routes: ReadonlyMap<string, readonly Coordinates[]>,
   cachePath: string = DEFAULT_CACHE_PATH
 ): Promise<void> {
   const data: OverpassCacheData = {
@@ -87,11 +99,11 @@ function isCacheStale(fetchedAt: string): boolean {
 
 async function refreshCache(
   cachePath: string,
-  staleRoutes: ReadonlyMap<string, Coordinates>
-): Promise<ReadonlyMap<string, Coordinates>> {
+  staleRoutes: ReadonlyMap<string, readonly Coordinates[]>
+): Promise<ReadonlyMap<string, readonly Coordinates[]>> {
   console.info('Overpass cache is older than 7 days, refreshing from API...')
   try {
-    const freshRoutes = await fetchOverpassRoutes()
+    const freshRoutes: ReadonlyMap<string, readonly Coordinates[]> = await fetchOverpassRoutes()
     if (freshRoutes.size > 0) {
       await saveCacheToDisk(freshRoutes, cachePath)
       console.info(`Overpass cache refreshed: ${freshRoutes.size} routes`)
@@ -106,7 +118,7 @@ async function refreshCache(
 
 export async function loadOverpassData(
   cachePath: string = DEFAULT_CACHE_PATH
-): Promise<ReadonlyMap<string, Coordinates>> {
+): Promise<ReadonlyMap<string, readonly Coordinates[]>> {
   const cached = await loadCacheFromDisk(cachePath)
 
   if (cached) {

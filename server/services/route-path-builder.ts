@@ -9,6 +9,20 @@ import { matchOverpassRef } from './overpass.js'
 
 type Coordinates = readonly (readonly [number, number])[]
 
+const NEAR_THRESHOLD = 0.0001
+
+function areSameTrack(
+  a: Coordinates,
+  b: Coordinates
+): boolean {
+  if (a.length < 2 || b.length < 2) {
+    return false
+  }
+  const near = (p1: readonly [number, number], p2: readonly [number, number]) =>
+    Math.abs(p1[0] - p2[0]) < NEAR_THRESHOLD && Math.abs(p1[1] - p2[1]) < NEAR_THRESHOLD
+  return near(a[0], b[b.length - 1]) && near(a[a.length - 1], b[0])
+}
+
 function resolveRouteType(gtfsType: number): 'tram' | 'bus' {
   return gtfsType === 0 ? 'tram' : 'bus'
 }
@@ -83,56 +97,101 @@ function findBestTripForRoute(
   return best
 }
 
+function findAllDistinctShapes(
+  routeId: string,
+  trips: ReadonlyMap<string, { readonly tripId: string; readonly routeId: string; readonly shapeId?: string }>,
+  shapes: ReadonlyMap<string, readonly ShapePoint[]>
+): readonly Coordinates[] {
+  const shapeIds = new Set<string>()
+  for (const trip of trips.values()) {
+    if (trip.routeId === routeId && trip.shapeId) {
+      shapeIds.add(trip.shapeId)
+    }
+  }
+
+  const allPaths: Coordinates[] = []
+  for (const shapeId of shapeIds) {
+    const shapePoints = shapes.get(shapeId)
+    if (shapePoints && shapePoints.length >= 2) {
+      allPaths.push(buildPathFromShape(shapePoints))
+    }
+  }
+
+  if (allPaths.length <= 1) {
+    return allPaths
+  }
+
+  const kept: Coordinates[] = []
+  for (const path of allPaths) {
+    if (!kept.some((existing) => areSameTrack(path, existing))) {
+      kept.push(path)
+    }
+  }
+  return kept
+}
+
+function makeRoutePath(
+  route: GtfsRoute,
+  coordinates: Coordinates
+): RoutePath {
+  return {
+    routeId: route.routeId,
+    shortName: route.shortName,
+    color: route.color,
+    type: resolveRouteType(route.type),
+    coordinates,
+  }
+}
+
 export function buildRoutePaths(
   staticData: GtfsStaticData,
   stopTimes: readonly StopTimeEntry[],
   shapes: ReadonlyMap<string, readonly ShapePoint[]>,
-  overpassPaths?: ReadonlyMap<string, Coordinates>
+  overpassPaths?: ReadonlyMap<string, readonly Coordinates[]>
 ): readonly RoutePath[] {
   const stopTimesByTrip = groupStopTimesByTrip(stopTimes)
   const paths: RoutePath[] = []
 
   for (const route of staticData.routes.values()) {
-    let coordinates: readonly (readonly [number, number])[] | undefined
+    // Priority 1: GTFS shapes (all distinct shapes, deduped)
+    const shapePaths = findAllDistinctShapes(
+      route.routeId,
+      staticData.trips,
+      shapes
+    )
+    if (shapePaths.length > 0) {
+      for (const coordinates of shapePaths) {
+        paths.push(makeRoutePath(route, coordinates))
+      }
+      continue
+    }
 
+    // Priority 2: Overpass OSM geometry (all branch variants)
+    if (overpassPaths) {
+      const overpassMatches = matchOverpassRef(route.shortName, overpassPaths)
+      if (overpassMatches) {
+        const valid = overpassMatches.filter((c) => c.length >= 2)
+        if (valid.length > 0) {
+          for (const coordinates of valid) {
+            paths.push(makeRoutePath(route, coordinates))
+          }
+          continue
+        }
+      }
+    }
+
+    // Priority 3: Stop sequences (straight lines, last resort)
     const bestTrip = findBestTripForRoute(
       route.routeId,
       staticData.trips,
       stopTimesByTrip
     )
-
-    // Priority 1: GTFS shapes (trip-specific, most accurate when available)
-    if (bestTrip?.shapeId) {
-      const shapePoints = shapes.get(bestTrip.shapeId)
-      if (shapePoints && shapePoints.length > 0) {
-        coordinates = buildPathFromShape(shapePoints)
+    if (bestTrip) {
+      const coordinates = buildFromStops(bestTrip.tripId, stopTimesByTrip, staticData)
+      if (coordinates.length >= 2) {
+        paths.push(makeRoutePath(route, coordinates))
       }
     }
-
-    // Priority 2: Overpass OSM geometry (tram + TaM bus routes)
-    if (!coordinates && overpassPaths) {
-      const overpassMatch = matchOverpassRef(route.shortName, overpassPaths)
-      if (overpassMatch && overpassMatch.length >= 2) {
-        coordinates = overpassMatch
-      }
-    }
-
-    // Priority 3: Stop sequences (straight lines, last resort)
-    if (!coordinates && bestTrip) {
-      coordinates = buildFromStops(bestTrip.tripId, stopTimesByTrip, staticData)
-    }
-
-    if (!coordinates || coordinates.length < 2) {
-      continue
-    }
-
-    paths.push({
-      routeId: route.routeId,
-      shortName: route.shortName,
-      color: route.color,
-      type: resolveRouteType(route.type),
-      coordinates,
-    })
   }
 
   return paths

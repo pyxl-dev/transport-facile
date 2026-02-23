@@ -24,12 +24,12 @@ describe('loadCacheFromDisk', () => {
     vi.clearAllMocks()
   })
 
-  it('should return parsed routes from valid cache file', async () => {
+  it('should return parsed routes from valid cache file (new format)', async () => {
     const cacheData = {
       fetchedAt: '2026-02-20T10:00:00.000Z',
       routes: {
-        '1': [[3.87, 43.6], [3.88, 43.61]],
-        'T2': [[3.90, 43.7], [3.91, 43.71]],
+        '1': [[[3.87, 43.6], [3.88, 43.61]]],
+        'T2': [[[3.90, 43.7], [3.91, 43.71]]],
       },
     }
     mockReadFile.mockResolvedValue(JSON.stringify(cacheData))
@@ -38,8 +38,25 @@ describe('loadCacheFromDisk', () => {
 
     expect(result).toBeDefined()
     expect(result!.routes.size).toBe(2)
-    expect(result!.routes.get('1')).toEqual([[3.87, 43.6], [3.88, 43.61]])
+    expect(result!.routes.get('1')).toEqual([[[3.87, 43.6], [3.88, 43.61]]])
     expect(result!.fetchedAt).toBe('2026-02-20T10:00:00.000Z')
+  })
+
+  it('should handle old cache format (single coordinates per ref)', async () => {
+    const cacheData = {
+      fetchedAt: '2026-02-20T10:00:00.000Z',
+      routes: {
+        '1': [[3.87, 43.6], [3.88, 43.61]],
+      },
+    }
+    mockReadFile.mockResolvedValue(JSON.stringify(cacheData))
+
+    const result = await loadCacheFromDisk('/tmp/test-cache.json')
+
+    expect(result).toBeDefined()
+    expect(result!.routes.size).toBe(1)
+    // Old format wrapped in array
+    expect(result!.routes.get('1')).toEqual([[[3.87, 43.6], [3.88, 43.61]]])
   })
 
   it('should return undefined when cache file does not exist', async () => {
@@ -73,8 +90,8 @@ describe('saveCacheToDisk', () => {
   })
 
   it('should write cache data as JSON with fetchedAt timestamp', async () => {
-    const routes = new Map<string, readonly (readonly [number, number])[]>([
-      ['1', [[3.87, 43.6], [3.88, 43.61]]],
+    const routes = new Map<string, readonly (readonly (readonly [number, number])[])[]>([
+      ['1', [[[3.87, 43.6], [3.88, 43.61]]]],
     ])
 
     await saveCacheToDisk(routes, '/tmp/test-cache.json')
@@ -85,11 +102,11 @@ describe('saveCacheToDisk', () => {
 
     const parsed = JSON.parse(content as string)
     expect(parsed.fetchedAt).toBeDefined()
-    expect(parsed.routes['1']).toEqual([[3.87, 43.6], [3.88, 43.61]])
+    expect(parsed.routes['1']).toEqual([[[3.87, 43.6], [3.88, 43.61]]])
   })
 
   it('should create parent directory if needed', async () => {
-    const routes = new Map<string, readonly (readonly [number, number])[]>()
+    const routes = new Map<string, readonly (readonly (readonly [number, number])[])[]>()
 
     await saveCacheToDisk(routes, '/tmp/nested/dir/cache.json')
 
@@ -111,7 +128,7 @@ describe('loadOverpassData', () => {
     const cacheData = {
       fetchedAt: new Date().toISOString(),
       routes: {
-        '1': [[3.87, 43.6], [3.88, 43.61]],
+        '1': [[[3.87, 43.6], [3.88, 43.61]]],
       },
     }
     mockReadFile.mockResolvedValue(JSON.stringify(cacheData))
@@ -119,14 +136,14 @@ describe('loadOverpassData', () => {
     const result = await loadOverpassData('/tmp/test-cache.json')
 
     expect(result.size).toBe(1)
-    expect(result.get('1')).toEqual([[3.87, 43.6], [3.88, 43.61]])
+    expect(result.get('1')).toEqual([[[3.87, 43.6], [3.88, 43.61]]])
   })
 
   it('should not call Overpass API when cache exists', async () => {
     const { fetchOverpassRoutes } = await import('../services/overpass.js')
     const cacheData = {
       fetchedAt: new Date().toISOString(),
-      routes: { '1': [[3.87, 43.6]] },
+      routes: { '1': [[[3.87, 43.6]]] },
     }
     mockReadFile.mockResolvedValue(JSON.stringify(cacheData))
 
@@ -138,7 +155,7 @@ describe('loadOverpassData', () => {
   it('should fetch from API and save cache when no cache file exists', async () => {
     const { fetchOverpassRoutes } = await import('../services/overpass.js')
     const mockRoutes = new Map([
-      ['1', [[3.87, 43.6], [3.88, 43.61]] as readonly (readonly [number, number])[]],
+      ['1', [[[3.87, 43.6], [3.88, 43.61]] as readonly (readonly [number, number])[]]],
     ])
     mockReadFile.mockRejectedValue(new Error('ENOENT'))
     vi.mocked(fetchOverpassRoutes).mockResolvedValue(mockRoutes)
@@ -166,11 +183,11 @@ describe('loadOverpassData', () => {
     const eightDaysAgo = new Date(Date.now() - 8 * 24 * 3_600_000).toISOString()
     const staleCache = {
       fetchedAt: eightDaysAgo,
-      routes: { '1': [[3.87, 43.6]] },
+      routes: { '1': [[[3.87, 43.6]]] },
     }
     const freshRoutes = new Map([
-      ['1', [[3.87, 43.6], [3.88, 43.61]] as readonly (readonly [number, number])[]],
-      ['2', [[3.90, 43.7]] as readonly (readonly [number, number])[]],
+      ['1', [[[3.87, 43.6], [3.88, 43.61]] as readonly (readonly [number, number])[]]],
+      ['2', [[[3.90, 43.7]] as readonly (readonly [number, number])[]]],
     ])
     mockReadFile.mockResolvedValue(JSON.stringify(staleCache))
     vi.mocked(fetchOverpassRoutes).mockResolvedValue(freshRoutes)
@@ -187,7 +204,7 @@ describe('loadOverpassData', () => {
     const threeDaysAgo = new Date(Date.now() - 3 * 24 * 3_600_000).toISOString()
     const freshCache = {
       fetchedAt: threeDaysAgo,
-      routes: { '1': [[3.87, 43.6]] },
+      routes: { '1': [[[3.87, 43.6]]] },
     }
     mockReadFile.mockResolvedValue(JSON.stringify(freshCache))
 
@@ -202,7 +219,7 @@ describe('loadOverpassData', () => {
     const tenDaysAgo = new Date(Date.now() - 10 * 24 * 3_600_000).toISOString()
     const staleCache = {
       fetchedAt: tenDaysAgo,
-      routes: { '1': [[3.87, 43.6]] },
+      routes: { '1': [[[3.87, 43.6]]] },
     }
     mockReadFile.mockResolvedValue(JSON.stringify(staleCache))
     vi.mocked(fetchOverpassRoutes).mockRejectedValue(new Error('API down'))
@@ -210,7 +227,7 @@ describe('loadOverpassData', () => {
     const result = await loadOverpassData('/tmp/test-cache.json')
 
     expect(result.size).toBe(1)
-    expect(result.get('1')).toEqual([[3.87, 43.6]])
+    expect(result.get('1')).toEqual([[[3.87, 43.6]]])
   })
 
   it('should use stale cache when refresh returns empty map', async () => {
@@ -218,7 +235,7 @@ describe('loadOverpassData', () => {
     const tenDaysAgo = new Date(Date.now() - 10 * 24 * 3_600_000).toISOString()
     const staleCache = {
       fetchedAt: tenDaysAgo,
-      routes: { '1': [[3.87, 43.6]] },
+      routes: { '1': [[[3.87, 43.6]]] },
     }
     mockReadFile.mockResolvedValue(JSON.stringify(staleCache))
     vi.mocked(fetchOverpassRoutes).mockResolvedValue(new Map())
@@ -226,7 +243,7 @@ describe('loadOverpassData', () => {
     const result = await loadOverpassData('/tmp/test-cache.json')
 
     expect(result.size).toBe(1)
-    expect(result.get('1')).toEqual([[3.87, 43.6]])
+    expect(result.get('1')).toEqual([[[3.87, 43.6]]])
     expect(mockWriteFile).not.toHaveBeenCalled()
   })
 })

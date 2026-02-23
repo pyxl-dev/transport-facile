@@ -212,12 +212,14 @@ describe('buildRoutePaths', () => {
   })
 
   describe('with overpassPaths', () => {
-    const overpassPaths = new Map<string, readonly (readonly [number, number])[]>([
+    const overpassPaths = new Map<string, readonly (readonly (readonly [number, number])[])[]>([
       ['1', [
-        [3.870, 43.600],
-        [3.872, 43.602],
-        [3.875, 43.605],
-        [3.880, 43.610],
+        [
+          [3.870, 43.600],
+          [3.872, 43.602],
+          [3.875, 43.605],
+          [3.880, 43.610],
+        ],
       ]],
     ])
 
@@ -278,7 +280,7 @@ describe('buildRoutePaths', () => {
 
       expect(paths).toHaveLength(1)
       expect(paths[0].shortName).toBe('T1')
-      expect(paths[0].coordinates).toEqual(overpassPaths.get('1'))
+      expect(paths[0].coordinates).toEqual(overpassPaths.get('1')![0])
     })
 
     it('should fall back to GTFS when no Overpass match', () => {
@@ -305,8 +307,8 @@ describe('buildRoutePaths', () => {
     })
 
     it('should skip Overpass match with fewer than 2 points', () => {
-      const shortOverpass = new Map<string, readonly (readonly [number, number])[]>([
-        ['1', [[3.870, 43.600]]],
+      const shortOverpass = new Map<string, readonly (readonly (readonly [number, number])[])[]>([
+        ['1', [[[3.870, 43.600]]]],
       ])
 
       const staticData = createStaticData()
@@ -328,11 +330,13 @@ describe('buildRoutePaths', () => {
     })
 
     it('should apply Overpass to bus routes without shapes', () => {
-      const busOverpass = new Map<string, readonly (readonly [number, number])[]>([
+      const busOverpass = new Map<string, readonly (readonly (readonly [number, number])[])[]>([
         ['6', [
-          [3.870, 43.600],
-          [3.872, 43.602],
-          [3.875, 43.605],
+          [
+            [3.870, 43.600],
+            [3.872, 43.602],
+            [3.875, 43.605],
+          ],
         ]],
       ])
 

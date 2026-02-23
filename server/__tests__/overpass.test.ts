@@ -52,9 +52,11 @@ describe('parseOverpassRelations', () => {
 
     expect(result.size).toBe(1)
     expect(result.get('1')).toEqual([
-      [3.87, 43.6],
-      [3.88, 43.61],
-      [3.89, 43.62],
+      [
+        [3.87, 43.6],
+        [3.88, 43.61],
+        [3.89, 43.62],
+      ],
     ])
   })
 
@@ -79,10 +81,11 @@ describe('parseOverpassRelations', () => {
     }
 
     const result = parseOverpassRelations(response)
-    const coords = result.get('2')!
+    const variants = result.get('2')!
 
-    expect(coords).toHaveLength(3)
-    expect(coords[1]).toEqual([3.88, 43.61])
+    expect(variants).toHaveLength(1)
+    expect(variants[0]).toHaveLength(3)
+    expect(variants[0][1]).toEqual([3.88, 43.61])
   })
 
   it('should keep non-consecutive duplicate points', () => {
@@ -101,12 +104,13 @@ describe('parseOverpassRelations', () => {
     }
 
     const result = parseOverpassRelations(response)
-    const coords = result.get('3')!
+    const variants = result.get('3')!
 
-    expect(coords).toHaveLength(3)
+    expect(variants).toHaveLength(1)
+    expect(variants[0]).toHaveLength(3)
   })
 
-  it('should keep the relation with the most way members when ref duplicated', () => {
+  it('should keep all distinct direction variants for same ref', () => {
     const response = {
       elements: [
         createRelation(
@@ -151,8 +155,49 @@ describe('parseOverpassRelations', () => {
     const result = parseOverpassRelations(response)
 
     expect(result.size).toBe(1)
-    const coords = result.get('1')!
-    expect(coords[0]).toEqual([3.90, 43.7])
+    const variants = result.get('1')!
+    // Both kept because they are geographically distinct (not reverse of each other)
+    expect(variants).toHaveLength(2)
+  })
+
+  it('should deduplicate reverse direction variants for same ref', () => {
+    const response = {
+      elements: [
+        createRelation(
+          '3',
+          [
+            {
+              geometry: [
+                { lat: 43.6, lon: 3.87 },
+                { lat: 43.65, lon: 3.88 },
+                { lat: 43.7, lon: 3.90 },
+              ],
+            },
+          ],
+          1
+        ),
+        createRelation(
+          '3',
+          [
+            {
+              geometry: [
+                { lat: 43.7, lon: 3.90 },
+                { lat: 43.65, lon: 3.88 },
+                { lat: 43.6, lon: 3.87 },
+              ],
+            },
+          ],
+          2
+        ),
+      ],
+    }
+
+    const result = parseOverpassRelations(response)
+
+    expect(result.size).toBe(1)
+    const variants = result.get('3')!
+    // Only one kept — the other is the same track reversed
+    expect(variants).toHaveLength(1)
   })
 
   it('should skip relations without ref tag', () => {
@@ -228,10 +273,11 @@ describe('parseOverpassRelations', () => {
     }
 
     const result = parseOverpassRelations(response)
-    const coords = result.get('5')!
+    const variants = result.get('5')!
 
-    expect(coords[0]).toEqual([3.8765, 43.6123])
-    expect(coords[1]).toEqual([3.8876, 43.6234])
+    expect(variants).toHaveLength(1)
+    expect(variants[0][0]).toEqual([3.8765, 43.6123])
+    expect(variants[0][1]).toEqual([3.8876, 43.6234])
   })
 })
 
@@ -432,27 +478,33 @@ describe('chainWayGeometries', () => {
 })
 
 describe('matchOverpassRef', () => {
-  const paths = new Map<string, readonly (readonly [number, number])[]>([
+  const paths = new Map<string, readonly (readonly (readonly [number, number])[])[]>([
     [
       '1',
       [
-        [3.87, 43.6],
-        [3.88, 43.61],
+        [
+          [3.87, 43.6],
+          [3.88, 43.61],
+        ],
       ],
     ],
     [
       '4A',
       [
-        [3.90, 43.7],
-        [3.91, 43.71],
+        [
+          [3.90, 43.7],
+          [3.91, 43.71],
+        ],
       ],
     ],
     [
       '4B',
       [
-        [3.92, 43.72],
-        [3.93, 43.73],
-        [3.94, 43.74],
+        [
+          [3.92, 43.72],
+          [3.93, 43.73],
+          [3.94, 43.74],
+        ],
       ],
     ],
   ])
@@ -461,8 +513,10 @@ describe('matchOverpassRef', () => {
     const result = matchOverpassRef('T1', paths)
 
     expect(result).toEqual([
-      [3.87, 43.6],
-      [3.88, 43.61],
+      [
+        [3.87, 43.6],
+        [3.88, 43.61],
+      ],
     ])
   })
 
@@ -470,8 +524,10 @@ describe('matchOverpassRef', () => {
     const result = matchOverpassRef('1', paths)
 
     expect(result).toEqual([
-      [3.87, 43.6],
-      [3.88, 43.61],
+      [
+        [3.87, 43.6],
+        [3.88, 43.61],
+      ],
     ])
   })
 
@@ -479,8 +535,10 @@ describe('matchOverpassRef', () => {
     const result = matchOverpassRef('T4A', paths)
 
     expect(result).toEqual([
-      [3.90, 43.7],
-      [3.91, 43.71],
+      [
+        [3.90, 43.7],
+        [3.91, 43.71],
+      ],
     ])
   })
 
@@ -490,34 +548,28 @@ describe('matchOverpassRef', () => {
     expect(result).toBeUndefined()
   })
 
-  it('should match shortName "4" to longest ref starting with "4" (prefix match)', () => {
+  it('should match shortName "4" to all refs starting with "4" (prefix match)', () => {
     const result = matchOverpassRef('4', paths)
 
-    // 4B has 3 points vs 4A has 2 points, so 4B is picked
-    expect(result).toEqual([
-      [3.92, 43.72],
-      [3.93, 43.73],
-      [3.94, 43.74],
-    ])
+    // Both 4A and 4B variants collected
+    expect(result).toHaveLength(2)
   })
 
-  it('should match shortName "T4" to longest ref starting with "4" (strip T + prefix match)', () => {
+  it('should match shortName "T4" to all refs starting with "4" (strip T + prefix match)', () => {
     const result = matchOverpassRef('T4', paths)
 
-    expect(result).toEqual([
-      [3.92, 43.72],
-      [3.93, 43.73],
-      [3.94, 43.74],
-    ])
+    expect(result).toHaveLength(2)
   })
 
   it('should try adding T prefix for reverse match', () => {
-    const pathsWithT = new Map<string, readonly (readonly [number, number])[]>([
+    const pathsWithT = new Map<string, readonly (readonly (readonly [number, number])[])[]>([
       [
         'T1',
         [
-          [3.87, 43.6],
-          [3.88, 43.61],
+          [
+            [3.87, 43.6],
+            [3.88, 43.61],
+          ],
         ],
       ],
     ])
@@ -525,8 +577,10 @@ describe('matchOverpassRef', () => {
     const result = matchOverpassRef('1', pathsWithT)
 
     expect(result).toEqual([
-      [3.87, 43.6],
-      [3.88, 43.61],
+      [
+        [3.87, 43.6],
+        [3.88, 43.61],
+      ],
     ])
   })
 })
@@ -565,7 +619,8 @@ describe('fetchOverpassRoutes', () => {
     const result = await fetchOverpassRoutes(noRetry)
 
     expect(result.size).toBe(1)
-    expect(result.get('1')).toBeDefined()
+    const variants = result.get('1')!
+    expect(variants).toHaveLength(1)
   })
 
   it('should return empty map on HTTP error', async () => {
@@ -633,7 +688,7 @@ describe('fetchOverpassRoutes', () => {
     const result = await fetchOverpassRoutes({ retries: 2, initialDelayMs: 1 })
 
     expect(result.size).toBe(1)
-    expect(result.get('T1')).toBeDefined()
+    expect(result.get('T1')).toHaveLength(1)
     expect(globalThis.fetch).toHaveBeenCalledTimes(2)
   })
 })

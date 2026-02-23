@@ -162,10 +162,55 @@ export function chainWayGeometries(
   return deduplicateConsecutivePoints(chain)
 }
 
+// ~100m tolerance for route-level dedup (terminus platforms can be 20-50m apart)
+const ROUTE_DEDUP_THRESHOLD = 0.001
+
+function routeEndpointsNear(
+  a: readonly [number, number],
+  b: readonly [number, number]
+): boolean {
+  return Math.abs(a[0] - b[0]) < ROUTE_DEDUP_THRESHOLD &&
+    Math.abs(a[1] - b[1]) < ROUTE_DEDUP_THRESHOLD
+}
+
+function deduplicateReverseVariants(
+  variants: readonly { wayCount: number; coordinates: Coordinates }[]
+): readonly Coordinates[] {
+  if (variants.length <= 1) {
+    return variants.map((v) => v.coordinates)
+  }
+
+  const sorted = [...variants].sort((a, b) => b.wayCount - a.wayCount)
+  const kept: Coordinates[] = []
+
+  for (const variant of sorted) {
+    const coords = variant.coordinates
+    if (coords.length < 2) {
+      continue
+    }
+
+    const isReverseOfExisting = kept.some((existing) => {
+      if (existing.length < 2) {
+        return false
+      }
+      return (
+        routeEndpointsNear(coords[0], existing[existing.length - 1]) &&
+        routeEndpointsNear(coords[coords.length - 1], existing[0])
+      )
+    })
+
+    if (!isReverseOfExisting) {
+      kept.push(coords)
+    }
+  }
+
+  return kept
+}
+
 export function parseOverpassRelations(
   response: OverpassResponse
-): ReadonlyMap<string, Coordinates> {
-  const byRef = new Map<string, { wayCount: number; coordinates: Coordinates }>()
+): ReadonlyMap<string, readonly Coordinates[]> {
+  const byRef = new Map<string, { wayCount: number; coordinates: Coordinates }[]>()
 
   for (const element of response.elements) {
     if (element.type !== 'relation') {
@@ -188,14 +233,17 @@ export function parseOverpassRelations(
     const coordinates = chainWayGeometries(wayMembers)
 
     const existing = byRef.get(ref)
-    if (!existing || wayMembers.length > existing.wayCount) {
-      byRef.set(ref, { wayCount: wayMembers.length, coordinates })
+    const entry = { wayCount: wayMembers.length, coordinates }
+    if (existing) {
+      existing.push(entry)
+    } else {
+      byRef.set(ref, [entry])
     }
   }
 
-  const result = new Map<string, Coordinates>()
-  for (const [ref, entry] of byRef) {
-    result.set(ref, entry.coordinates)
+  const result = new Map<string, readonly Coordinates[]>()
+  for (const [ref, variants] of byRef) {
+    result.set(ref, deduplicateReverseVariants(variants))
   }
 
   return result
@@ -203,7 +251,7 @@ export function parseOverpassRelations(
 
 export async function fetchOverpassRoutes(
   retryOptions?: Partial<FetchWithRetryOptions>
-): Promise<ReadonlyMap<string, Coordinates>> {
+): Promise<ReadonlyMap<string, readonly Coordinates[]>> {
   try {
     const response = await fetchWithRetry(
       OVERPASS_URL,
@@ -223,23 +271,25 @@ export async function fetchOverpassRoutes(
   }
 }
 
-function findLongestByPrefix(
+function findAllByPrefix(
   prefix: string,
-  overpassPaths: ReadonlyMap<string, Coordinates>
-): Coordinates | undefined {
-  let best: Coordinates | undefined
-  for (const [ref, coords] of overpassPaths) {
-    if (ref.startsWith(prefix) && (!best || coords.length > best.length)) {
-      best = coords
+  overpassPaths: ReadonlyMap<string, readonly Coordinates[]>
+): readonly Coordinates[] | undefined {
+  const allCoords: Coordinates[] = []
+  for (const [ref, coordsArray] of overpassPaths) {
+    if (ref.startsWith(prefix)) {
+      for (const coords of coordsArray) {
+        allCoords.push(coords)
+      }
     }
   }
-  return best
+  return allCoords.length > 0 ? allCoords : undefined
 }
 
 export function matchOverpassRef(
   shortName: string,
-  overpassPaths: ReadonlyMap<string, Coordinates>
-): Coordinates | undefined {
+  overpassPaths: ReadonlyMap<string, readonly Coordinates[]>
+): readonly Coordinates[] | undefined {
   // Direct match: shortName "1" → ref "1"
   const direct = overpassPaths.get(shortName)
   if (direct) {
@@ -261,9 +311,9 @@ export function matchOverpassRef(
     return withPrefix
   }
 
-  // Prefix match: shortName "4" → ref "4A" or "4B" (pick longest)
+  // Prefix match: shortName "4" → ref "4A" or "4B" (all variants)
   const baseRef = bare ?? shortName
-  const prefixMatch = findLongestByPrefix(baseRef, overpassPaths)
+  const prefixMatch = findAllByPrefix(baseRef, overpassPaths)
   if (prefixMatch) {
     return prefixMatch
   }
