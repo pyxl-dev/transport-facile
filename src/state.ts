@@ -1,10 +1,11 @@
-import type { AppState, Vehicle, LineInfo, Stop, RoutePath } from './types'
+import type { AppState, Vehicle, LineInfo, Stop, RoutePath, TripShapesData } from './types'
 
 const initialState: AppState = {
   vehicles: [],
   lines: [],
   stops: [],
   routePaths: [],
+  tripShapesData: null,
   selectedLines: new Set<string>(),
   favoriteLines: new Set<string>(),
   isLoading: false,
@@ -86,6 +87,12 @@ export function setRoutePaths(
   return (state) => ({ ...state, routePaths })
 }
 
+export function setTripShapesData(
+  tripShapesData: TripShapesData
+): (state: AppState) => AppState {
+  return (state) => ({ ...state, tripShapesData })
+}
+
 export function toggleFavorite(
   lineId: string
 ): (state: AppState) => AppState {
@@ -117,11 +124,73 @@ export function getFilteredVehicles(state: AppState): readonly Vehicle[] {
   return state.vehicles.filter((v) => state.selectedLines.has(v.line.id))
 }
 
-export function getFilteredRoutePaths(state: AppState): readonly RoutePath[] {
-  if (state.selectedLines.size === 0) {
-    return state.routePaths
+const PROXIMITY_THRESHOLD_SQ = 0.002 * 0.002 // ~200m at Montpellier latitude
+
+function hasVehicleNearBranch(
+  vehicles: readonly Vehicle[],
+  routeId: string,
+  coordinates: readonly (readonly [number, number])[]
+): boolean {
+  for (const vehicle of vehicles) {
+    if (vehicle.line.id !== routeId) continue
+    const vLng = vehicle.position.lng
+    const vLat = vehicle.position.lat
+    for (const [lng, lat] of coordinates) {
+      const dLng = vLng - lng
+      const dLat = vLat - lat
+      if (dLng * dLng + dLat * dLat < PROXIMITY_THRESHOLD_SQ) {
+        return true
+      }
+    }
   }
-  return state.routePaths.filter((rp) => state.selectedLines.has(rp.routeId))
+  return false
+}
+
+export function getFilteredRoutePaths(state: AppState): readonly RoutePath[] {
+  const lineFiltered =
+    state.selectedLines.size === 0
+      ? state.routePaths
+      : state.routePaths.filter((rp) => state.selectedLines.has(rp.routeId))
+
+  if (!state.tripShapesData) {
+    return lineFiltered
+  }
+
+  const { tripShapes, defaultShapes } = state.tripShapesData
+
+  const activeShapesByRoute = new Map<string, Set<string>>()
+  for (const vehicle of state.vehicles) {
+    const shapeId = tripShapes[vehicle.tripId]
+    if (!shapeId) continue
+    const existing = activeShapesByRoute.get(vehicle.line.id)
+    if (existing) {
+      existing.add(shapeId)
+    } else {
+      activeShapesByRoute.set(vehicle.line.id, new Set([shapeId]))
+    }
+  }
+
+  const vehiclesByRoute = new Map<string, boolean>()
+  for (const vehicle of state.vehicles) {
+    vehiclesByRoute.set(vehicle.line.id, true)
+  }
+
+  return lineFiltered.filter((rp) => {
+    const isFallback = rp.shapeId.startsWith('fallback-')
+
+    if (!isFallback) {
+      const activeShapes = activeShapesByRoute.get(rp.routeId)
+      if (activeShapes) {
+        return activeShapes.has(rp.shapeId)
+      }
+      return rp.shapeId === defaultShapes[rp.routeId]
+    }
+
+    if (!vehiclesByRoute.has(rp.routeId)) {
+      return true
+    }
+    return hasVehicleNearBranch(state.vehicles, rp.routeId, rp.coordinates)
+  })
 }
 
 export function getFilteredStops(state: AppState): readonly Stop[] {

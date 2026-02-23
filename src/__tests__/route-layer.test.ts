@@ -62,6 +62,7 @@ describe('route-layer', () => {
     const routePaths: RoutePath[] = [
       {
         routeId: 'R1',
+        shapeId: 'SH1',
         shortName: 'T1',
         color: '#005CA9',
         type: 'tram',

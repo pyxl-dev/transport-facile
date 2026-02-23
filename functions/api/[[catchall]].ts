@@ -8,6 +8,7 @@ import type {
   RoutePath,
   Stop,
   StopArrival,
+  TripShapesData,
   Vehicle,
 } from '../../src/types.js'
 import { fetchVehiclePositions } from '../../server/services/gtfs-realtime.js'
@@ -46,6 +47,7 @@ let stopsCache: ReadonlyMap<string, GtfsStop> | null = null
 let stopRoutesCache: Readonly<Record<string, readonly string[]>> | null = null
 let routePathsCache: readonly RoutePath[] | null = null
 let tripStopsCache: Readonly<Record<string, readonly [string, number, number][]>> | null = null
+let tripShapesCache: TripShapesData | null = null
 
 // --- Asset loading helpers ---
 
@@ -98,6 +100,12 @@ async function loadTripStops(
   if (tripStopsCache) return tripStopsCache
   tripStopsCache = await (await fetchAsset(env, url, '/data/gtfs-trip-stops.json')).json() as Record<string, [string, number, number][]>
   return tripStopsCache
+}
+
+async function loadTripShapes(env: Env, url: string): Promise<TripShapesData> {
+  if (tripShapesCache) return tripShapesCache
+  tripShapesCache = await (await fetchAsset(env, url, '/data/gtfs-trip-shapes.json')).json() as TripShapesData
+  return tripShapesCache
 }
 
 function distToSegmentSquared(
@@ -243,6 +251,7 @@ async function handleVehicles(
 
       return {
         vehicleId: raw.vehicleId,
+        tripId: raw.tripId,
         position: { lat: raw.lat, lng: raw.lng },
         bearing: raw.bearing,
         line: {
@@ -345,6 +354,11 @@ async function handleStops(
 async function handleRoutePaths(env: Env, requestUrl: string): Promise<Response> {
   const paths = await loadRoutePaths(env, requestUrl)
   return apiSuccess<readonly RoutePath[]>(paths)
+}
+
+async function handleTripShapes(env: Env, requestUrl: string): Promise<Response> {
+  const data = await loadTripShapes(env, requestUrl)
+  return apiSuccess<TripShapesData>(data)
 }
 
 function gtfsTimeToSeconds(time: string): number {
@@ -488,6 +502,10 @@ export async function onRequest(context: CFContext): Promise<Response> {
 
     if (path === 'route-paths') {
       return await handleRoutePaths(env, request.url)
+    }
+
+    if (path === 'trip-shapes') {
+      return await handleTripShapes(env, request.url)
     }
 
     const arrivalsMatch = path.match(/^stops\/([^/]+)\/arrivals$/)

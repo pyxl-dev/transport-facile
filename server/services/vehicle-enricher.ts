@@ -117,6 +117,7 @@ export function enrichVehicles(
 
       const vehicle: Vehicle = {
         vehicleId: raw.vehicleId,
+        tripId: raw.tripId,
         position: {
           lat: raw.lat,
           lng: raw.lng,

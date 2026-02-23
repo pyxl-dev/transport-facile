@@ -83,6 +83,7 @@ describe('vehicle-enricher', () => {
       expect(vehicles).toHaveLength(1)
       expect(vehicles[0]).toEqual({
         vehicleId: 'V1',
+        tripId: 'T100',
         position: {
           lat: 43.6085,
           lng: 3.8805,

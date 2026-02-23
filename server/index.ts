@@ -1,6 +1,6 @@
 import { loadConfig } from './config.js'
 import { loadGtfsStaticData } from './services/gtfs-static.js'
-import { buildRoutePaths } from './services/route-path-builder.js'
+import { buildRoutePaths, buildTripShapeMap, buildDefaultShapeMap } from './services/route-path-builder.js'
 import { loadOverpassData } from './services/overpass-cache.js'
 import { createApp } from './app.js'
 
@@ -20,9 +20,13 @@ async function main(): Promise<void> {
   const routePaths = buildRoutePaths(staticData, gtfsResult.stopTimes, gtfsResult.shapes, overpassPaths)
   console.info(`Route paths built: ${routePaths.length} routes`)
 
+  const tripShapeMap = buildTripShapeMap(staticData)
+  const defaultShapeMap = buildDefaultShapeMap(staticData)
+  console.info(`Trip shape mappings: ${tripShapeMap.size} trips, ${defaultShapeMap.size} default shapes`)
+
   console.info(`Stop times loaded: ${gtfsResult.stopTimes.length} entries`)
 
-  const app = createApp(staticData, config, routePaths, gtfsResult.stopTimes)
+  const app = createApp(staticData, config, routePaths, gtfsResult.stopTimes, tripShapeMap, defaultShapeMap)
 
   const server = app.listen(config.PORT, () => {
     console.info(`Transport map server listening on http://localhost:${config.PORT}`)

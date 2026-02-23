@@ -9,13 +9,14 @@ import {
   setLines,
   setStops,
   setRoutePaths,
+  setTripShapesData,
   setLoading,
   setFavoriteLines,
   getFilteredVehicles,
   getFilteredRoutePaths,
   getFilteredStops,
 } from './state'
-import { fetchVehicles, fetchLines, fetchStops, fetchRoutePaths } from './services/api'
+import { fetchVehicles, fetchLines, fetchStops, fetchRoutePaths, fetchTripShapes } from './services/api'
 import { createPollingService } from './services/polling'
 import { loadFavorites, saveFavorites } from './services/favorites-storage'
 import { createFilterPanel } from './ui/filter-panel'
@@ -73,14 +74,16 @@ function init(): void {
     }
 
     async function loadInitialData(): Promise<void> {
-      const [lines, stops, routePaths] = await Promise.all([
+      const [lines, stops, routePaths, tripShapesData] = await Promise.all([
         fetchLines(),
         fetchStops(),
         fetchRoutePaths(),
+        fetchTripShapes(),
       ])
       store.setState(setLines(lines))
       store.setState(setStops(stops))
       store.setState(setRoutePaths(routePaths))
+      store.setState(setTripShapesData(tripShapesData))
     }
 
     const storedFavorites = loadFavorites()

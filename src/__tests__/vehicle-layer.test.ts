@@ -5,6 +5,7 @@ import type { Vehicle } from '../types'
 function createVehicle(overrides: Partial<Vehicle> = {}): Vehicle {
   return {
     vehicleId: 'v-001',
+    tripId: 'trip-001',
     position: { lat: 43.6108, lng: 3.8767 },
     bearing: 90,
     line: {

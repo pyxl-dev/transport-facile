@@ -2,7 +2,7 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { loadConfig } from '../server/config.js'
 import { loadGtfsStaticData } from '../server/services/gtfs-static.js'
-import { buildRoutePaths } from '../server/services/route-path-builder.js'
+import { buildRoutePaths, buildTripShapeMap, buildDefaultShapeMap } from '../server/services/route-path-builder.js'
 import { loadOverpassData } from '../server/services/overpass-cache.js'
 import type { GtfsStop, GtfsTrip, StopTimeEntry } from '../src/types.js'
 
@@ -139,6 +139,17 @@ async function main() {
     JSON.stringify(routePaths)
   )
 
+  // Trip shapes mapping (used by /api/trip-shapes for active shape filtering)
+  console.log('Building trip-shapes mapping...')
+  const tripShapeMap = buildTripShapeMap(result.staticData)
+  const defaultShapeMap = buildDefaultShapeMap(result.staticData)
+  const tripShapesData = {
+    tripShapes: mapToObject(tripShapeMap),
+    defaultShapes: mapToObject(defaultShapeMap),
+  }
+  const tripShapesJson = JSON.stringify(tripShapesData)
+  writeFileSync(join(outDir, 'gtfs-trip-shapes.json'), tripShapesJson)
+
   // Trip stops index (used by /api/vehicles for nextStopName)
   console.log('Building trip-stops index...')
   const tripStops = buildTripStops(result.stopTimes, result.staticData.stops)
@@ -184,6 +195,7 @@ async function main() {
   console.log(`  Stop times: ${result.stopTimes.length}`)
   console.log(`  Active stops: ${Object.keys(stopRoutes).length}`)
   console.log(`  Route paths: ${routePaths.length}`)
+  console.log(`  Trip-shapes: ${tripShapeMap.size} trips, ${defaultShapeMap.size} defaults (${(tripShapesJson.length / 1024 / 1024).toFixed(1)} MB)`)
   console.log(`  Trip-stops index: ${Object.keys(tripStops).length} trips (${(tripStopsJson.length / 1024 / 1024).toFixed(1)} MB)`)
   console.log(`  Arrivals chunks: ${ARRIVALS_CHUNKS} files (${(totalChunkSize / 1024 / 1024).toFixed(1)} MB total)`)
 }

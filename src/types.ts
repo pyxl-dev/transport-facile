@@ -12,6 +12,7 @@ export interface LineInfo {
 
 export interface Vehicle {
   readonly vehicleId: string
+  readonly tripId: string
   readonly position: Position
   readonly bearing: number
   readonly line: LineInfo
@@ -79,6 +80,7 @@ export interface AppState {
   readonly lines: readonly LineInfo[]
   readonly stops: readonly Stop[]
   readonly routePaths: readonly RoutePath[]
+  readonly tripShapesData: TripShapesData | null
   readonly selectedLines: ReadonlySet<string>
   readonly favoriteLines: ReadonlySet<string>
   readonly isLoading: boolean
@@ -94,10 +96,16 @@ export interface BBox {
 
 export interface RoutePath {
   readonly routeId: string
+  readonly shapeId: string
   readonly shortName: string
   readonly color: string
   readonly type: 'tram' | 'bus'
   readonly coordinates: readonly (readonly [number, number])[]
+}
+
+export interface TripShapesData {
+  readonly tripShapes: Readonly<Record<string, string>>
+  readonly defaultShapes: Readonly<Record<string, string>>
 }
 
 export interface ShapePoint {

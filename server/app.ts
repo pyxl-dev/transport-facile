@@ -9,6 +9,7 @@ import { linesRouter } from './routes/lines.js'
 import { stopsRouter } from './routes/stops.js'
 import { routePathsRouter } from './routes/route-paths.js'
 import { stopArrivalsRouter } from './routes/stop-arrivals.js'
+import { tripShapesRouter } from './routes/trip-shapes.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const STATIC_DIR = path.join(__dirname, '..', 'dist')
@@ -17,7 +18,9 @@ export function createApp(
   staticData: GtfsStaticData,
   config: Config,
   routePaths?: readonly RoutePath[],
-  stopTimes?: readonly StopTimeEntry[]
+  stopTimes?: readonly StopTimeEntry[],
+  tripShapeMap?: ReadonlyMap<string, string>,
+  defaultShapeMap?: ReadonlyMap<string, string>
 ): Express {
   const app = express()
 
@@ -28,12 +31,15 @@ export function createApp(
   app.locals.config = config
   app.locals.routePaths = routePaths ?? []
   app.locals.stopTimes = stopTimes ?? []
+  app.locals.tripShapeMap = tripShapeMap
+  app.locals.defaultShapeMap = defaultShapeMap
 
   app.use('/api/vehicles', vehiclesRouter)
   app.use('/api/lines', linesRouter)
   app.use('/api/stops', stopsRouter)
   app.use('/api/stops', stopArrivalsRouter)
   app.use('/api/route-paths', routePathsRouter)
+  app.use('/api/trip-shapes', tripShapesRouter)
 
   app.use(express.static(STATIC_DIR))
   app.get('*', (_req, res, next) => {

@@ -1,5 +1,5 @@
 import { API_BASE_URL } from '../config'
-import type { ApiResponse, Vehicle, LineInfo, Stop, RoutePath, StopArrival } from '../types'
+import type { ApiResponse, Vehicle, LineInfo, Stop, RoutePath, StopArrival, TripShapesData } from '../types'
 
 async function fetchJson<T>(
   path: string,
@@ -54,4 +54,8 @@ export function fetchRoutePaths(): Promise<RoutePath[]> {
 
 export function fetchStopArrivals(stopId: string): Promise<StopArrival[]> {
   return fetchJson<StopArrival[]>(`${API_BASE_URL}/stops/${encodeURIComponent(stopId)}/arrivals`)
+}
+
+export function fetchTripShapes(): Promise<TripShapesData> {
+  return fetchJson<TripShapesData>(`${API_BASE_URL}/trip-shapes`)
 }

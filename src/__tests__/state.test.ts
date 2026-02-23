@@ -4,14 +4,17 @@ import {
   setLines,
   setStops,
   setLoading,
+  setRoutePaths,
+  setTripShapesData,
   toggleLineFilter,
   clearLineFilter,
   toggleFavorite,
   setFavoriteLines,
   clearFavorites,
   getFilteredVehicles,
+  getFilteredRoutePaths,
 } from '../state'
-import type { Vehicle, LineInfo, Stop } from '../types'
+import type { Vehicle, LineInfo, Stop, RoutePath, TripShapesData } from '../types'
 
 function createMockLine(overrides: Partial<LineInfo> = {}): LineInfo {
   return {
@@ -26,12 +29,25 @@ function createMockLine(overrides: Partial<LineInfo> = {}): LineInfo {
 function createMockVehicle(overrides: Partial<Vehicle> = {}): Vehicle {
   return {
     vehicleId: 'v-001',
+    tripId: 'trip-001',
     position: { lat: 43.61, lng: 3.87 },
     bearing: 90,
     line: createMockLine(),
     headsign: 'Mosson',
     directionId: '0',
     timestamp: 1700000000,
+    ...overrides,
+  }
+}
+
+function createMockRoutePath(overrides: Partial<RoutePath> = {}): RoutePath {
+  return {
+    routeId: 'T1',
+    shapeId: 'shape-A',
+    shortName: 'T1',
+    color: '#005CA9',
+    type: 'tram',
+    coordinates: [[3.87, 43.60], [3.88, 43.61]],
     ...overrides,
   }
 }
@@ -389,5 +405,112 @@ describe('clearFavorites', () => {
     store.setState(clearFavorites())
 
     expect(store.getState().favoriteLines).not.toBe(prevFavorites)
+  })
+})
+
+describe('getFilteredRoutePaths', () => {
+  it('should return all paths when tripShapesData is null', () => {
+    const store = createStore()
+    const paths = [
+      createMockRoutePath({ routeId: 'T1', shapeId: 'shape-A' }),
+      createMockRoutePath({ routeId: 'T1', shapeId: 'shape-B' }),
+    ]
+    store.setState(setRoutePaths(paths))
+
+    const result = getFilteredRoutePaths(store.getState())
+
+    expect(result).toEqual(paths)
+  })
+
+  it('should show only active shapes when vehicles are running', () => {
+    const store = createStore()
+    const paths = [
+      createMockRoutePath({ routeId: 'T1', shapeId: 'shape-A' }),
+      createMockRoutePath({ routeId: 'T1', shapeId: 'shape-B' }),
+    ]
+    const tripShapes: TripShapesData = {
+      tripShapes: { 'trip-001': 'shape-A' },
+      defaultShapes: { 'T1': 'shape-B' },
+    }
+    store.setState(setRoutePaths(paths))
+    store.setState(setTripShapesData(tripShapes))
+    store.setState(setVehicles([
+      createMockVehicle({ tripId: 'trip-001', line: createMockLine({ id: 'T1' }) }),
+    ]))
+
+    const result = getFilteredRoutePaths(store.getState())
+
+    expect(result).toHaveLength(1)
+    expect(result[0].shapeId).toBe('shape-A')
+  })
+
+  it('should fall back to default shape when no vehicles on route', () => {
+    const store = createStore()
+    const paths = [
+      createMockRoutePath({ routeId: 'T1', shapeId: 'shape-A' }),
+      createMockRoutePath({ routeId: 'T1', shapeId: 'shape-B' }),
+    ]
+    const tripShapes: TripShapesData = {
+      tripShapes: {},
+      defaultShapes: { 'T1': 'shape-B' },
+    }
+    store.setState(setRoutePaths(paths))
+    store.setState(setTripShapesData(tripShapes))
+
+    const result = getFilteredRoutePaths(store.getState())
+
+    expect(result).toHaveLength(1)
+    expect(result[0].shapeId).toBe('shape-B')
+  })
+
+  it('should combine line filter and shape filter', () => {
+    const store = createStore()
+    const paths = [
+      createMockRoutePath({ routeId: 'T1', shapeId: 'shape-A' }),
+      createMockRoutePath({ routeId: 'T1', shapeId: 'shape-B' }),
+      createMockRoutePath({ routeId: 'T2', shapeId: 'shape-C' }),
+    ]
+    const tripShapes: TripShapesData = {
+      tripShapes: { 'trip-001': 'shape-A' },
+      defaultShapes: { 'T1': 'shape-B', 'T2': 'shape-C' },
+    }
+    store.setState(setRoutePaths(paths))
+    store.setState(setTripShapesData(tripShapes))
+    store.setState(setVehicles([
+      createMockVehicle({ tripId: 'trip-001', line: createMockLine({ id: 'T1' }) }),
+    ]))
+    store.setState(toggleLineFilter('T1'))
+
+    const result = getFilteredRoutePaths(store.getState())
+
+    expect(result).toHaveLength(1)
+    expect(result[0].routeId).toBe('T1')
+    expect(result[0].shapeId).toBe('shape-A')
+  })
+
+  it('should show multiple active shapes for same route', () => {
+    const store = createStore()
+    const paths = [
+      createMockRoutePath({ routeId: 'T1', shapeId: 'shape-A' }),
+      createMockRoutePath({ routeId: 'T1', shapeId: 'shape-B' }),
+      createMockRoutePath({ routeId: 'T1', shapeId: 'shape-C' }),
+    ]
+    const tripShapes: TripShapesData = {
+      tripShapes: { 'trip-001': 'shape-A', 'trip-002': 'shape-B' },
+      defaultShapes: { 'T1': 'shape-C' },
+    }
+    store.setState(setRoutePaths(paths))
+    store.setState(setTripShapesData(tripShapes))
+    store.setState(setVehicles([
+      createMockVehicle({ vehicleId: 'v-001', tripId: 'trip-001', line: createMockLine({ id: 'T1' }) }),
+      createMockVehicle({ vehicleId: 'v-002', tripId: 'trip-002', line: createMockLine({ id: 'T1' }) }),
+    ]))
+
+    const result = getFilteredRoutePaths(store.getState())
+
+    expect(result).toHaveLength(2)
+    const shapeIds = result.map((rp) => rp.shapeId)
+    expect(shapeIds).toContain('shape-A')
+    expect(shapeIds).toContain('shape-B')
   })
 })

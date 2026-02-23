@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildRoutePaths } from '../services/route-path-builder.js'
+import { buildRoutePaths, buildTripShapeMap, buildDefaultShapeMap } from '../services/route-path-builder.js'
 import type { GtfsStaticData, ShapePoint, StopTimeEntry } from '../../src/types.js'
 
 function createStaticData(overrides: Partial<GtfsStaticData> = {}): GtfsStaticData {
@@ -44,6 +44,7 @@ describe('buildRoutePaths', () => {
 
     expect(paths).toHaveLength(1)
     expect(paths[0].routeId).toBe('R1')
+    expect(paths[0].shapeId).toBe('SH1')
     expect(paths[0].shortName).toBe('T1')
     expect(paths[0].color).toBe('#005CA9')
     expect(paths[0].type).toBe('tram')
@@ -68,6 +69,7 @@ describe('buildRoutePaths', () => {
     const paths = buildRoutePaths(staticData, stopTimes, shapes)
 
     expect(paths).toHaveLength(1)
+    expect(paths[0].shapeId).toBe('fallback-R1')
     expect(paths[0].coordinates).toEqual([
       [3.87, 43.60],
       [3.88, 43.61],
@@ -378,5 +380,96 @@ describe('buildRoutePaths', () => {
         [3.88, 43.61],
       ])
     })
+  })
+})
+
+describe('buildTripShapeMap', () => {
+  it('should map tripId to shapeId when trip has shapeId', () => {
+    const staticData = createStaticData({
+      trips: new Map([
+        ['TR1', { tripId: 'TR1', routeId: 'R1', headsign: 'Mosson', directionId: '0', shapeId: 'SH1' }],
+      ]),
+    })
+
+    const result = buildTripShapeMap(staticData)
+
+    expect(result.get('TR1')).toBe('SH1')
+  })
+
+  it('should use fallback shapeId when trip has no shapeId', () => {
+    const staticData = createStaticData({
+      trips: new Map([
+        ['TR1', { tripId: 'TR1', routeId: 'R1', headsign: 'Mosson', directionId: '0' }],
+      ]),
+    })
+
+    const result = buildTripShapeMap(staticData)
+
+    expect(result.get('TR1')).toBe('fallback-R1')
+  })
+
+  it('should handle multiple trips', () => {
+    const staticData = createStaticData({
+      trips: new Map([
+        ['TR1', { tripId: 'TR1', routeId: 'R1', headsign: 'Mosson', directionId: '0', shapeId: 'SH1' }],
+        ['TR2', { tripId: 'TR2', routeId: 'R1', headsign: 'Odysseum', directionId: '1', shapeId: 'SH2' }],
+        ['TR3', { tripId: 'TR3', routeId: 'R1', headsign: 'Mosson', directionId: '0' }],
+      ]),
+    })
+
+    const result = buildTripShapeMap(staticData)
+
+    expect(result.size).toBe(3)
+    expect(result.get('TR1')).toBe('SH1')
+    expect(result.get('TR2')).toBe('SH2')
+    expect(result.get('TR3')).toBe('fallback-R1')
+  })
+})
+
+describe('buildDefaultShapeMap', () => {
+  it('should pick the most frequent shapeId per route', () => {
+    const staticData = createStaticData({
+      trips: new Map([
+        ['TR1', { tripId: 'TR1', routeId: 'R1', headsign: 'Mosson', directionId: '0', shapeId: 'SH1' }],
+        ['TR2', { tripId: 'TR2', routeId: 'R1', headsign: 'Odysseum', directionId: '1', shapeId: 'SH1' }],
+        ['TR3', { tripId: 'TR3', routeId: 'R1', headsign: 'Mosson', directionId: '0', shapeId: 'SH2' }],
+      ]),
+    })
+
+    const result = buildDefaultShapeMap(staticData)
+
+    expect(result.get('R1')).toBe('SH1')
+  })
+
+  it('should use fallback when trips have no shapeId', () => {
+    const staticData = createStaticData({
+      trips: new Map([
+        ['TR1', { tripId: 'TR1', routeId: 'R1', headsign: 'Mosson', directionId: '0' }],
+        ['TR2', { tripId: 'TR2', routeId: 'R1', headsign: 'Odysseum', directionId: '1' }],
+      ]),
+    })
+
+    const result = buildDefaultShapeMap(staticData)
+
+    expect(result.get('R1')).toBe('fallback-R1')
+  })
+
+  it('should handle multiple routes', () => {
+    const staticData = createStaticData({
+      routes: new Map([
+        ['R1', { routeId: 'R1', shortName: 'T1', longName: 'Tram 1', type: 0, color: '#005CA9', textColor: '#FFFFFF' }],
+        ['R2', { routeId: 'R2', shortName: '6', longName: 'Bus 6', type: 3, color: '#FF0000', textColor: '#FFFFFF' }],
+      ]),
+      trips: new Map([
+        ['TR1', { tripId: 'TR1', routeId: 'R1', headsign: 'Mosson', directionId: '0', shapeId: 'SH1' }],
+        ['TR2', { tripId: 'TR2', routeId: 'R2', headsign: 'Centre', directionId: '0', shapeId: 'SH3' }],
+      ]),
+    })
+
+    const result = buildDefaultShapeMap(staticData)
+
+    expect(result.size).toBe(2)
+    expect(result.get('R1')).toBe('SH1')
+    expect(result.get('R2')).toBe('SH3')
   })
 })

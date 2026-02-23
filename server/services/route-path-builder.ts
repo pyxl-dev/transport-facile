@@ -9,6 +9,11 @@ import { matchOverpassRef } from './overpass.js'
 
 type Coordinates = readonly (readonly [number, number])[]
 
+interface ShapeWithId {
+  readonly shapeId: string
+  readonly coordinates: Coordinates
+}
+
 const NEAR_THRESHOLD = 0.0001
 
 function areSameTrack(
@@ -101,7 +106,7 @@ function findAllDistinctShapes(
   routeId: string,
   trips: ReadonlyMap<string, { readonly tripId: string; readonly routeId: string; readonly shapeId?: string }>,
   shapes: ReadonlyMap<string, readonly ShapePoint[]>
-): readonly Coordinates[] {
+): readonly ShapeWithId[] {
   const shapeIds = new Set<string>()
   for (const trip of trips.values()) {
     if (trip.routeId === routeId && trip.shapeId) {
@@ -109,11 +114,11 @@ function findAllDistinctShapes(
     }
   }
 
-  const allPaths: Coordinates[] = []
+  const allPaths: ShapeWithId[] = []
   for (const shapeId of shapeIds) {
     const shapePoints = shapes.get(shapeId)
     if (shapePoints && shapePoints.length >= 2) {
-      allPaths.push(buildPathFromShape(shapePoints))
+      allPaths.push({ shapeId, coordinates: buildPathFromShape(shapePoints) })
     }
   }
 
@@ -121,9 +126,9 @@ function findAllDistinctShapes(
     return allPaths
   }
 
-  const kept: Coordinates[] = []
+  const kept: ShapeWithId[] = []
   for (const path of allPaths) {
-    if (!kept.some((existing) => areSameTrack(path, existing))) {
+    if (!kept.some((existing) => areSameTrack(path.coordinates, existing.coordinates))) {
       kept.push(path)
     }
   }
@@ -132,10 +137,12 @@ function findAllDistinctShapes(
 
 function makeRoutePath(
   route: GtfsRoute,
+  shapeId: string,
   coordinates: Coordinates
 ): RoutePath {
   return {
     routeId: route.routeId,
+    shapeId,
     shortName: route.shortName,
     color: route.color,
     type: resolveRouteType(route.type),
@@ -153,6 +160,8 @@ export function buildRoutePaths(
   const paths: RoutePath[] = []
 
   for (const route of staticData.routes.values()) {
+    const fallbackId = `fallback-${route.routeId}`
+
     // Priority 1: GTFS shapes (all distinct shapes, deduped)
     const shapePaths = findAllDistinctShapes(
       route.routeId,
@@ -160,8 +169,8 @@ export function buildRoutePaths(
       shapes
     )
     if (shapePaths.length > 0) {
-      for (const coordinates of shapePaths) {
-        paths.push(makeRoutePath(route, coordinates))
+      for (const { shapeId, coordinates } of shapePaths) {
+        paths.push(makeRoutePath(route, shapeId, coordinates))
       }
       continue
     }
@@ -173,7 +182,7 @@ export function buildRoutePaths(
         const valid = overpassMatches.filter((c) => c.length >= 2)
         if (valid.length > 0) {
           for (const coordinates of valid) {
-            paths.push(makeRoutePath(route, coordinates))
+            paths.push(makeRoutePath(route, fallbackId, coordinates))
           }
           continue
         }
@@ -189,12 +198,55 @@ export function buildRoutePaths(
     if (bestTrip) {
       const coordinates = buildFromStops(bestTrip.tripId, stopTimesByTrip, staticData)
       if (coordinates.length >= 2) {
-        paths.push(makeRoutePath(route, coordinates))
+        paths.push(makeRoutePath(route, fallbackId, coordinates))
       }
     }
   }
 
   return paths
+}
+
+export function buildTripShapeMap(
+  staticData: GtfsStaticData
+): ReadonlyMap<string, string> {
+  const result = new Map<string, string>()
+  for (const trip of staticData.trips.values()) {
+    const shapeId = trip.shapeId ?? `fallback-${trip.routeId}`
+    result.set(trip.tripId, shapeId)
+  }
+  return result
+}
+
+export function buildDefaultShapeMap(
+  staticData: GtfsStaticData
+): ReadonlyMap<string, string> {
+  // Count trips per shapeId per route
+  const routeShapeCounts = new Map<string, Map<string, number>>()
+
+  for (const trip of staticData.trips.values()) {
+    const shapeId = trip.shapeId ?? `fallback-${trip.routeId}`
+    const shapeCounts = routeShapeCounts.get(trip.routeId)
+    if (shapeCounts) {
+      shapeCounts.set(shapeId, (shapeCounts.get(shapeId) ?? 0) + 1)
+    } else {
+      routeShapeCounts.set(trip.routeId, new Map([[shapeId, 1]]))
+    }
+  }
+
+  const result = new Map<string, string>()
+  for (const [routeId, shapeCounts] of routeShapeCounts) {
+    let bestShapeId = `fallback-${routeId}`
+    let bestCount = 0
+    for (const [shapeId, count] of shapeCounts) {
+      if (count > bestCount) {
+        bestCount = count
+        bestShapeId = shapeId
+      }
+    }
+    result.set(routeId, bestShapeId)
+  }
+
+  return result
 }
 
 function buildFromStops(
