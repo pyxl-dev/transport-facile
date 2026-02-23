@@ -162,51 +162,6 @@ export function chainWayGeometries(
   return deduplicateConsecutivePoints(chain)
 }
 
-// ~100m tolerance for route-level dedup (terminus platforms can be 20-50m apart)
-const ROUTE_DEDUP_THRESHOLD = 0.001
-
-function routeEndpointsNear(
-  a: readonly [number, number],
-  b: readonly [number, number]
-): boolean {
-  return Math.abs(a[0] - b[0]) < ROUTE_DEDUP_THRESHOLD &&
-    Math.abs(a[1] - b[1]) < ROUTE_DEDUP_THRESHOLD
-}
-
-function deduplicateReverseVariants(
-  variants: readonly { wayCount: number; coordinates: Coordinates }[]
-): readonly Coordinates[] {
-  if (variants.length <= 1) {
-    return variants.map((v) => v.coordinates)
-  }
-
-  const sorted = [...variants].sort((a, b) => b.wayCount - a.wayCount)
-  const kept: Coordinates[] = []
-
-  for (const variant of sorted) {
-    const coords = variant.coordinates
-    if (coords.length < 2) {
-      continue
-    }
-
-    const isReverseOfExisting = kept.some((existing) => {
-      if (existing.length < 2) {
-        return false
-      }
-      return (
-        routeEndpointsNear(coords[0], existing[existing.length - 1]) &&
-        routeEndpointsNear(coords[coords.length - 1], existing[0])
-      )
-    })
-
-    if (!isReverseOfExisting) {
-      kept.push(coords)
-    }
-  }
-
-  return kept
-}
-
 export function parseOverpassRelations(
   response: OverpassResponse
 ): ReadonlyMap<string, readonly Coordinates[]> {
@@ -243,7 +198,7 @@ export function parseOverpassRelations(
 
   const result = new Map<string, readonly Coordinates[]>()
   for (const [ref, variants] of byRef) {
-    result.set(ref, deduplicateReverseVariants(variants))
+    result.set(ref, variants.filter((v) => v.coordinates.length >= 2).map((v) => v.coordinates))
   }
 
   return result

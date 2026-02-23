@@ -160,7 +160,7 @@ describe('parseOverpassRelations', () => {
     expect(variants).toHaveLength(2)
   })
 
-  it('should deduplicate reverse direction variants for same ref', () => {
+  it('should keep reverse direction variants for same ref', () => {
     const response = {
       elements: [
         createRelation(
@@ -196,8 +196,48 @@ describe('parseOverpassRelations', () => {
 
     expect(result.size).toBe(1)
     const variants = result.get('3')!
-    // Only one kept — the other is the same track reversed
-    expect(variants).toHaveLength(1)
+    // Both kept — reverse directions should be displayed
+    expect(variants).toHaveLength(2)
+  })
+
+  it('should keep all variants including same direction for same ref', () => {
+    const response = {
+      elements: [
+        createRelation(
+          '3',
+          [
+            {
+              geometry: [
+                { lat: 43.6, lon: 3.87 },
+                { lat: 43.65, lon: 3.88 },
+                { lat: 43.7, lon: 3.90 },
+              ],
+            },
+          ],
+          1
+        ),
+        createRelation(
+          '3',
+          [
+            {
+              geometry: [
+                { lat: 43.6, lon: 3.87 },
+                { lat: 43.65, lon: 3.88 },
+                { lat: 43.7, lon: 3.90 },
+              ],
+            },
+          ],
+          2
+        ),
+      ],
+    }
+
+    const result = parseOverpassRelations(response)
+
+    expect(result.size).toBe(1)
+    const variants = result.get('3')!
+    // All variants kept — no dedup, let the map display all
+    expect(variants).toHaveLength(2)
   })
 
   it('should skip relations without ref tag', () => {
