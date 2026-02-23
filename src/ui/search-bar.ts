@@ -135,8 +135,15 @@ export function createSearchBar(
 
     const normalizedQuery = normalizeText(text)
     const stops = store.getState().allStops
+    const seenNames = new Set<string>()
     const matches = stops
-      .filter((s) => normalizeText(s.name).includes(normalizedQuery))
+      .filter((s) => {
+        const norm = normalizeText(s.name)
+        if (!norm.includes(normalizedQuery)) return false
+        if (seenNames.has(norm)) return false
+        seenNames.add(norm)
+        return true
+      })
       .slice(0, SEARCH_MAX_RESULTS)
 
     renderResults(matches)

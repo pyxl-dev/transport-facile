@@ -82,11 +82,11 @@ export function openStopPopup(
   }
 
   const selectedLineNames = options?.skipLineFilter ? null : getSelectedLineNames(store)
+  const arrivalsContainer = popupEl?.querySelector('#stop-arrivals-content')
 
   if (stopIds.length === 0) {
-    const container = popup.getElement()?.querySelector('#stop-arrivals-content')
-    if (container) {
-      container.innerHTML = renderArrivals([])
+    if (arrivalsContainer) {
+      arrivalsContainer.innerHTML = renderArrivals([])
     }
     return
   }
@@ -94,15 +94,13 @@ export function openStopPopup(
   Promise.all(stopIds.map((id) => fetchStopArrivals(id)))
     .then((results) => {
       const arrivals = filterArrivalsBySelectedLines(results.flat(), selectedLineNames)
-      const container = popup.getElement()?.querySelector('#stop-arrivals-content')
-      if (container) {
-        container.innerHTML = renderArrivals(arrivals)
+      if (arrivalsContainer) {
+        arrivalsContainer.innerHTML = renderArrivals(arrivals)
       }
     })
     .catch(() => {
-      const container = popup.getElement()?.querySelector('#stop-arrivals-content')
-      if (container) {
-        container.innerHTML = '<div class="stop-popup__empty">Erreur de chargement</div>'
+      if (arrivalsContainer) {
+        arrivalsContainer.innerHTML = '<div class="stop-popup__empty">Erreur de chargement</div>'
       }
     })
 }
