@@ -25,6 +25,7 @@ export interface Stop {
   readonly stopId: string
   readonly name: string
   readonly position: Position
+  readonly routeIds: readonly string[]
 }
 
 export interface GtfsRoute {

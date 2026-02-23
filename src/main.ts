@@ -13,6 +13,7 @@ import {
   setFavoriteLines,
   getFilteredVehicles,
   getFilteredRoutePaths,
+  getFilteredStops,
 } from './state'
 import { fetchVehicles, fetchLines, fetchStops, fetchRoutePaths } from './services/api'
 import { createPollingService } from './services/polling'
@@ -50,6 +51,9 @@ function init(): void {
 
       const filteredRoutes = getFilteredRoutePaths(state)
       updateRouteLayer(map, filteredRoutes)
+
+      const filteredStops = getFilteredStops(state)
+      updateStopLayer(map, filteredStops)
     })
 
     async function refreshVehicles(): Promise<void> {
@@ -77,7 +81,6 @@ function init(): void {
       store.setState(setLines(lines))
       store.setState(setStops(stops))
       store.setState(setRoutePaths(routePaths))
-      updateStopLayer(map, stops)
     }
 
     const storedFavorites = loadFavorites()
@@ -117,7 +120,6 @@ function init(): void {
             maxLat: bounds.getNorth(),
           })
           store.setState(setStops(stops))
-          updateStopLayer(map, stops)
         } catch (_error) {
           // Silently ignore stop loading errors
         }

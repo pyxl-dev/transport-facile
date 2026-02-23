@@ -43,7 +43,7 @@ const ARRIVALS_CHUNKS = 50
 let routesCache: ReadonlyMap<string, GtfsRoute> | null = null
 let tripsCache: ReadonlyMap<string, GtfsTrip> | null = null
 let stopsCache: ReadonlyMap<string, GtfsStop> | null = null
-let activeStopIdsCache: ReadonlySet<string> | null = null
+let stopRoutesCache: Readonly<Record<string, readonly string[]>> | null = null
 let routePathsCache: readonly RoutePath[] | null = null
 let tripStopsCache: Readonly<Record<string, readonly [string, number, number][]>> | null = null
 
@@ -79,11 +79,10 @@ async function loadStops(env: Env, url: string): Promise<ReadonlyMap<string, Gtf
   return stopsCache
 }
 
-async function loadActiveStopIds(env: Env, url: string): Promise<ReadonlySet<string>> {
-  if (activeStopIdsCache) return activeStopIdsCache
-  const data = await (await fetchAsset(env, url, '/data/gtfs-active-stop-ids.json')).json() as string[]
-  activeStopIdsCache = new Set(data)
-  return activeStopIdsCache
+async function loadStopRoutes(env: Env, url: string): Promise<Readonly<Record<string, readonly string[]>>> {
+  if (stopRoutesCache) return stopRoutesCache
+  stopRoutesCache = await (await fetchAsset(env, url, '/data/gtfs-stop-routes.json')).json() as Record<string, readonly string[]>
+  return stopRoutesCache
 }
 
 async function loadRoutePaths(env: Env, url: string): Promise<readonly RoutePath[]> {
@@ -305,9 +304,9 @@ async function handleStops(
   env: Env,
   requestUrl: string
 ): Promise<Response> {
-  const [stops, activeStopIds] = await Promise.all([
+  const [stops, stopRoutes] = await Promise.all([
     loadStops(env, requestUrl),
-    loadActiveStopIds(env, requestUrl),
+    loadStopRoutes(env, requestUrl),
   ])
 
   const bboxParam = url.searchParams.get('bbox')
@@ -322,11 +321,12 @@ async function handleStops(
   }
 
   const allStops: Stop[] = Array.from(stops.values())
-    .filter((s) => activeStopIds.has(s.stopId))
+    .filter((s) => stopRoutes[s.stopId] !== undefined)
     .map((s) => ({
       stopId: s.stopId,
       name: s.name,
       position: { lat: s.lat, lng: s.lng },
+      routeIds: stopRoutes[s.stopId] ?? [],
     }))
 
   const filtered = bbox

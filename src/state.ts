@@ -123,3 +123,20 @@ export function getFilteredRoutePaths(state: AppState): readonly RoutePath[] {
   }
   return state.routePaths.filter((rp) => state.selectedLines.has(rp.routeId))
 }
+
+export function getFilteredStops(state: AppState): readonly Stop[] {
+  const activeRouteIds = new Set(state.vehicles.map((v) => v.line.id))
+
+  if (activeRouteIds.size === 0) {
+    return []
+  }
+
+  const visibleRouteIds =
+    state.selectedLines.size > 0
+      ? new Set([...state.selectedLines].filter((id) => activeRouteIds.has(id)))
+      : activeRouteIds
+
+  return state.stops.filter((stop) =>
+    stop.routeIds.some((routeId) => visibleRouteIds.has(routeId))
+  )
+}

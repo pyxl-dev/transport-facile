@@ -294,13 +294,14 @@ describe('GET /api/stops', () => {
   it('should map GtfsStop to Stop format with position object', async () => {
     const { body } = await makeRequest(app, '/api/stops')
 
-    const stops = body.data as { stopId: string; name: string; position: { lat: number; lng: number } }[]
+    const stops = body.data as { stopId: string; name: string; position: { lat: number; lng: number }; routeIds: string[] }[]
     const comedie = stops.find((s) => s.stopId === 's1')
 
     expect(comedie).toEqual({
       stopId: 's1',
       name: 'Comedie',
       position: { lat: 43.6085, lng: 3.8795 },
+      routeIds: ['r1'],
     })
   })
 

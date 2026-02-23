@@ -4,7 +4,7 @@ import { loadConfig } from '../server/config.js'
 import { loadGtfsStaticData } from '../server/services/gtfs-static.js'
 import { buildRoutePaths } from '../server/services/route-path-builder.js'
 import { loadOverpassData } from '../server/services/overpass-cache.js'
-import type { GtfsStop, StopTimeEntry } from '../src/types.js'
+import type { GtfsStop, GtfsTrip, StopTimeEntry } from '../src/types.js'
 
 function mapToObject<V>(map: ReadonlyMap<string, V>): Record<string, V> {
   const obj: Record<string, V> = {}
@@ -145,11 +145,23 @@ async function main() {
   const tripStopsJson = JSON.stringify(tripStops)
   writeFileSync(join(outDir, 'gtfs-trip-stops.json'), tripStopsJson)
 
-  // Active stop IDs (used by /api/stops to filter)
-  const activeStopIds = [...new Set(result.stopTimes.map((st) => st.stopId))]
+  // Stop-to-routes mapping (used by /api/stops to filter and enrich)
+  const stopRoutes: Record<string, string[]> = {}
+  for (const st of result.stopTimes) {
+    const trip = result.staticData.trips.get(st.tripId)
+    if (!trip) continue
+    const existing = stopRoutes[st.stopId]
+    if (existing) {
+      if (!existing.includes(trip.routeId)) {
+        existing.push(trip.routeId)
+      }
+    } else {
+      stopRoutes[st.stopId] = [trip.routeId]
+    }
+  }
   writeFileSync(
-    join(outDir, 'gtfs-active-stop-ids.json'),
-    JSON.stringify(activeStopIds)
+    join(outDir, 'gtfs-stop-routes.json'),
+    JSON.stringify(stopRoutes)
   )
 
   // Arrivals chunks (used by /api/stops/:stopId/arrivals)
@@ -170,7 +182,7 @@ async function main() {
   console.log(`  Trips: ${result.staticData.trips.size}`)
   console.log(`  Stops: ${result.staticData.stops.size}`)
   console.log(`  Stop times: ${result.stopTimes.length}`)
-  console.log(`  Active stops: ${activeStopIds.length}`)
+  console.log(`  Active stops: ${Object.keys(stopRoutes).length}`)
   console.log(`  Route paths: ${routePaths.length}`)
   console.log(`  Trip-stops index: ${Object.keys(tripStops).length} trips (${(tripStopsJson.length / 1024 / 1024).toFixed(1)} MB)`)
   console.log(`  Arrivals chunks: ${ARRIVALS_CHUNKS} files (${(totalChunkSize / 1024 / 1024).toFixed(1)} MB total)`)

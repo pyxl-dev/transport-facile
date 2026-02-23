@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from 'express'
 import { z } from 'zod'
-import type { ApiResponse, Stop, GtfsStaticData, BBox, GtfsStop, StopTimeEntry } from '../../src/types.js'
+import type { ApiResponse, Stop, GtfsStaticData, BBox, GtfsStop, GtfsTrip, StopTimeEntry } from '../../src/types.js'
 
 export const stopsRouter = Router()
 
@@ -19,7 +19,29 @@ const bboxSchema = z
     })
   )
 
-function gtfsStopToStop(gtfsStop: GtfsStop): Stop {
+function buildStopToRoutes(
+  stopTimes: readonly StopTimeEntry[],
+  trips: ReadonlyMap<string, GtfsTrip>,
+): ReadonlyMap<string, readonly string[]> {
+  const stopRoutes = new Map<string, Set<string>>()
+  for (const st of stopTimes) {
+    const trip = trips.get(st.tripId)
+    if (!trip) continue
+    const existing = stopRoutes.get(st.stopId)
+    if (existing) {
+      existing.add(trip.routeId)
+    } else {
+      stopRoutes.set(st.stopId, new Set([trip.routeId]))
+    }
+  }
+  const result = new Map<string, readonly string[]>()
+  for (const [stopId, routeSet] of stopRoutes) {
+    result.set(stopId, [...routeSet])
+  }
+  return result
+}
+
+function gtfsStopToStop(gtfsStop: GtfsStop, routeIds: readonly string[]): Stop {
   return {
     stopId: gtfsStop.stopId,
     name: gtfsStop.name,
@@ -27,6 +49,7 @@ function gtfsStopToStop(gtfsStop: GtfsStop): Stop {
       lat: gtfsStop.lat,
       lng: gtfsStop.lng,
     },
+    routeIds,
   }
 }
 
@@ -60,11 +83,11 @@ stopsRouter.get('/', (req: Request, res: Response<ApiResponse<Stop[]>>) => {
     }
 
     const stopTimes = req.app.locals.stopTimes as readonly StopTimeEntry[]
-    const activeStopIds = new Set(stopTimes.map((st) => st.stopId))
+    const stopToRoutes = buildStopToRoutes(stopTimes, staticData.trips)
 
     const allStops = Array.from(staticData.stops.values())
-      .filter((s) => activeStopIds.has(s.stopId))
-      .map(gtfsStopToStop)
+      .filter((s) => stopToRoutes.has(s.stopId))
+      .map((s) => gtfsStopToStop(s, stopToRoutes.get(s.stopId) ?? []))
 
     const filtered = bbox ? allStops.filter((stop) => isWithinBBox(stop, bbox)) : allStops
 
