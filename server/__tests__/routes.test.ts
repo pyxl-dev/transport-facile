@@ -302,6 +302,7 @@ describe('GET /api/stops', () => {
 
     expect(comedie).toEqual({
       stopId: 's1',
+      stopIds: ['s1'],
       name: 'Comedie',
       position: { lat: 43.6085, lng: 3.8795 },
       routeIds: ['r1'],

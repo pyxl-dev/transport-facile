@@ -55,6 +55,7 @@ function createMockRoutePath(overrides: Partial<RoutePath> = {}): RoutePath {
 function createMockStop(overrides: Partial<Stop> = {}): Stop {
   return {
     stopId: 's-001',
+    stopIds: ['s-001'],
     name: 'Comedie',
     position: { lat: 43.6085, lng: 3.8795 },
     routeIds: ['T1'],

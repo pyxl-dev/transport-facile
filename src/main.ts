@@ -42,7 +42,7 @@ function init(): void {
     initRouteLayer(map)
     initVehicleLayer(map)
     setupVehiclePopup(map)
-    initStopLayer(map)
+    initStopLayer(map, store)
 
     createFilterPanel(uiRoot, store)
 

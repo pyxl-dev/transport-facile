@@ -24,6 +24,7 @@ export interface Vehicle {
 
 export interface Stop {
   readonly stopId: string
+  readonly stopIds: readonly string[]
   readonly name: string
   readonly position: Position
   readonly routeIds: readonly string[]

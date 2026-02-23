@@ -41,18 +41,6 @@ function buildStopToRoutes(
   return result
 }
 
-function gtfsStopToStop(gtfsStop: GtfsStop, routeIds: readonly string[]): Stop {
-  return {
-    stopId: gtfsStop.stopId,
-    name: gtfsStop.name,
-    position: {
-      lat: gtfsStop.lat,
-      lng: gtfsStop.lng,
-    },
-    routeIds,
-  }
-}
-
 function isWithinBBox(stop: Stop, bbox: BBox): boolean {
   return (
     stop.position.lng >= bbox.minLng &&
@@ -60,6 +48,46 @@ function isWithinBBox(stop: Stop, bbox: BBox): boolean {
     stop.position.lat >= bbox.minLat &&
     stop.position.lat <= bbox.maxLat
   )
+}
+
+function groupStopsByName(
+  gtfsStops: readonly GtfsStop[],
+  stopToRoutes: ReadonlyMap<string, readonly string[]>,
+): readonly Stop[] {
+  const groups = new Map<string, { stopIds: string[]; lats: number[]; lngs: number[]; routeIds: Set<string> }>()
+
+  for (const s of gtfsStops) {
+    const routes = stopToRoutes.get(s.stopId)
+    if (!routes) continue
+
+    const existing = groups.get(s.name)
+    if (existing) {
+      existing.stopIds.push(s.stopId)
+      existing.lats.push(s.lat)
+      existing.lngs.push(s.lng)
+      for (const r of routes) {
+        existing.routeIds.add(r)
+      }
+    } else {
+      groups.set(s.name, {
+        stopIds: [s.stopId],
+        lats: [s.lat],
+        lngs: [s.lng],
+        routeIds: new Set(routes),
+      })
+    }
+  }
+
+  return Array.from(groups.entries()).map(([name, group]) => ({
+    stopId: group.stopIds[0],
+    stopIds: group.stopIds,
+    name,
+    position: {
+      lat: group.lats.reduce((sum, v) => sum + v, 0) / group.lats.length,
+      lng: group.lngs.reduce((sum, v) => sum + v, 0) / group.lngs.length,
+    },
+    routeIds: [...group.routeIds],
+  }))
 }
 
 stopsRouter.get('/', (req: Request, res: Response<ApiResponse<Stop[]>>) => {
@@ -85,15 +113,16 @@ stopsRouter.get('/', (req: Request, res: Response<ApiResponse<Stop[]>>) => {
     const stopTimes = req.app.locals.stopTimes as readonly StopTimeEntry[]
     const stopToRoutes = buildStopToRoutes(stopTimes, staticData.trips)
 
-    const allStops = Array.from(staticData.stops.values())
-      .filter((s) => stopToRoutes.has(s.stopId))
-      .map((s) => gtfsStopToStop(s, stopToRoutes.get(s.stopId) ?? []))
+    const allStops = groupStopsByName(
+      Array.from(staticData.stops.values()),
+      stopToRoutes,
+    )
 
     const filtered = bbox ? allStops.filter((stop) => isWithinBBox(stop, bbox)) : allStops
 
     res.json({
       success: true,
-      data: filtered,
+      data: filtered as Stop[],
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to fetch stops'

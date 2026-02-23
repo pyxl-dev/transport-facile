@@ -1,5 +1,6 @@
 import maplibregl from 'maplibre-gl'
-import type { Stop } from '../types'
+import type { Stop, StopArrival } from '../types'
+import type { Store } from '../state'
 import { STOP_VISIBLE_ZOOM } from '../config'
 import { createStopPopupContent, renderArrivals } from '../ui/stop-popup'
 import { fetchStopArrivals } from '../services/api'
@@ -29,13 +30,40 @@ export function stopsToGeoJSON(
       },
       properties: {
         stopId: s.stopId,
+        stopIds: JSON.stringify(s.stopIds),
         name: s.name,
       },
     })),
   }
 }
 
-export function initStopLayer(map: maplibregl.Map): void {
+function getSelectedLineNames(store: Store): ReadonlySet<string> | null {
+  const state = store.getState()
+  if (state.selectedLines.size === 0) {
+    return null
+  }
+  const lineMap = new Map(state.lines.map((l) => [l.id, l.name]))
+  const names = new Set<string>()
+  for (const routeId of state.selectedLines) {
+    const name = lineMap.get(routeId)
+    if (name) {
+      names.add(name)
+    }
+  }
+  return names
+}
+
+function filterArrivalsBySelectedLines(
+  arrivals: readonly StopArrival[],
+  selectedLineNames: ReadonlySet<string> | null,
+): readonly StopArrival[] {
+  if (!selectedLineNames) {
+    return arrivals
+  }
+  return arrivals.filter((a) => selectedLineNames.has(a.lineName))
+}
+
+export function initStopLayer(map: maplibregl.Map, store: Store): void {
   map.addSource(STOP_SOURCE, {
     type: 'geojson',
     data: createEmptyFeatureCollection(),
@@ -136,15 +164,18 @@ export function initStopLayer(map: maplibregl.Map): void {
     }
 
     const stopName = String(properties.name)
-    const stopId = String(properties.stopId)
+    const stopIds: readonly string[] = JSON.parse(String(properties.stopIds))
 
     const popup = new maplibregl.Popup({ maxWidth: '320px' })
       .setLngLat(coordinates)
       .setHTML(createStopPopupContent(stopName))
       .addTo(map)
 
-    fetchStopArrivals(stopId)
-      .then((arrivals) => {
+    const selectedLineNames = getSelectedLineNames(store)
+
+    Promise.all(stopIds.map((id) => fetchStopArrivals(id)))
+      .then((results) => {
+        const arrivals = filterArrivalsBySelectedLines(results.flat(), selectedLineNames)
         const container = popup.getElement()?.querySelector('#stop-arrivals-content')
         if (container) {
           container.innerHTML = renderArrivals(arrivals)
