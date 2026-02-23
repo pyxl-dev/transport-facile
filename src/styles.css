@@ -427,12 +427,26 @@ html, body {
 .stop-arrival__list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  max-height: 280px;
+  gap: 0;
+  max-height: 300px;
   overflow-y: auto;
 }
 
-.stop-arrival__row {
+.stop-arrival__group {
+  padding: 8px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.stop-arrival__group:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.stop-arrival__group:first-child {
+  padding-top: 0;
+}
+
+.stop-arrival__main {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -442,20 +456,20 @@ html, body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 28px;
-  height: 20px;
-  padding: 0 5px;
-  border-radius: 10px;
-  font-size: 11px;
+  min-width: 30px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 6px;
+  font-size: 12px;
   font-weight: 700;
   color: #ffffff;
   flex-shrink: 0;
 }
 
 .stop-arrival__headsign {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
-  color: #475569;
+  color: #334155;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -463,27 +477,28 @@ html, body {
   min-width: 0;
 }
 
-.stop-arrival__times {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+.stop-arrival__next {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
   flex-shrink: 0;
 }
 
-.stop-arrival__time {
-  font-size: 12px;
+.stop-arrival__unit {
+  font-size: 11px;
   font-weight: 500;
   color: #64748b;
-  white-space: nowrap;
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
 }
 
-.stop-arrival__time--first {
-  font-size: 14px;
-  font-weight: 700;
-  color: #1e293b;
+.stop-arrival__later {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-top: 2px;
+  padding-left: 38px;
 }
 
 .stop-arrival__rt {
@@ -491,9 +506,24 @@ html, body {
   font-weight: 700;
   color: #16a34a;
   background: #dcfce7;
-  padding: 0 3px;
+  padding: 1px 4px;
   border-radius: 3px;
-  line-height: 14px;
+  line-height: 1;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+.stop-arrival__rt--small {
+  font-size: 7px;
+  margin-left: 1px;
+  padding: 0 2px;
+}
+
+.stop-arrival__more {
+  font-size: 10px;
+  font-weight: 600;
+  color: #64748b;
+  margin-left: 4px;
 }
 
 /* Vehicle HTML markers */

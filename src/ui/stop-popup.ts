@@ -83,22 +83,37 @@ function groupArrivals(arrivals: readonly StopArrival[]): readonly ArrivalGroup[
     .sort((a, b) => a.arrivals[0].minutes - b.arrivals[0].minutes)
 }
 
-function renderTime(arrival: DeduplicatedArrival, isFirst: boolean): string {
-  const rtBadge = arrival.isRealTime
-    ? '<span class="stop-arrival__rt">RT</span>'
+const MAX_LATER_ARRIVALS = 3
+
+function formatNextArrival(arrival: DeduplicatedArrival): string {
+  const minutes = arrival.minutes === 0 ? '<1' : `${arrival.minutes}`
+  return `<span class="stop-arrival__next">${minutes}<span class="stop-arrival__unit">min</span></span>`
+}
+
+function formatLaterArrivals(arrivals: readonly DeduplicatedArrival[]): string {
+  if (arrivals.length === 0) return ''
+  const visible = arrivals.slice(0, MAX_LATER_ARRIVALS)
+  const hiddenCount = arrivals.length - visible.length
+  const times = visible.map((a) => a.minutes === 0 ? '<1' : `${a.minutes}`).join(', ')
+  const overflow = hiddenCount > 0
+    ? `<span class="stop-arrival__more">+${hiddenCount}</span>`
     : ''
-  const firstClass = isFirst ? ' stop-arrival__time--first' : ''
-  return `<span class="stop-arrival__time${firstClass}">${formatMinutes(arrival.minutes)}${rtBadge}</span>`
+  return `<div class="stop-arrival__later">puis ${times} min${overflow}</div>`
 }
 
 function renderGroup(group: ArrivalGroup): string {
-  const times = group.arrivals.map((a, i) => renderTime(a, i === 0)).join('')
   const displayName = formatDisplayName(group.lineName, group.direction)
+  const [first, ...rest] = group.arrivals
+  const nextArrival = first ? formatNextArrival(first) : ''
+  const laterArrivals = formatLaterArrivals(rest)
 
-  return `<div class="stop-arrival__row">
-    <span class="stop-arrival__line" style="background-color: ${group.lineColor};">${displayName}</span>
-    <span class="stop-arrival__headsign">${group.headsign}</span>
-    <span class="stop-arrival__times">${times}</span>
+  return `<div class="stop-arrival__group">
+    <div class="stop-arrival__main">
+      <span class="stop-arrival__line" style="background-color: ${group.lineColor};">${displayName}</span>
+      <span class="stop-arrival__headsign">${group.headsign}</span>
+      ${nextArrival}
+    </div>
+    ${laterArrivals}
   </div>`
 }
 
