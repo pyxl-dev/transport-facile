@@ -1,11 +1,13 @@
 import { defineConfig } from 'vite'
 
+const apiTarget = process.env.VITE_API_TARGET || 'https://preview.transport-facile.pages.dev'
+
 export default defineConfig({
   server: {
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://localhost:3000',
+        target: apiTarget,
         changeOrigin: true,
       },
     },

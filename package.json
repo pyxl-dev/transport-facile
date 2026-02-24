@@ -5,9 +5,13 @@
   "type": "module",
   "packageManager": "pnpm@10.28.2",
   "scripts": {
-    "dev": "concurrently \"pnpm dev:server\" \"pnpm dev:client\"",
+    "dev:preview": "vite",
+    "deploy:preview": "pnpm build:cf && wrangler pages deploy dist --branch=preview",
+    "deploy:cf": "pnpm build:cf && wrangler pages deploy",
+    "dev": "VITE_API_TARGET=http://localhost:3000 concurrently \"pnpm dev:server\" \"pnpm dev:client\"",
     "dev:server": "tsx watch server/index.ts",
     "dev:client": "vite",
+    "dev:cf": "pnpm build:cf && wrangler pages dev",
     "build": "tsc && vite build",
     "build:server": "tsc -p tsconfig.server.json",
     "start": "NODE_OPTIONS='--max-old-space-size=384' tsx server/index.ts",
@@ -17,9 +21,7 @@
     "test:coverage": "vitest run --coverage",
     "refresh-overpass": "tsx server/scripts/refresh-overpass.ts",
     "build:gtfs": "tsx scripts/build-gtfs-data.ts",
-    "build:cf": "pnpm build && pnpm build:gtfs",
-    "deploy:cf": "pnpm build:cf && wrangler pages deploy",
-    "dev:cf": "pnpm build:cf && wrangler pages dev"
+    "build:cf": "pnpm build && pnpm build:gtfs"
   },
   "dependencies": {
     "adm-zip": "^0.5.16",
