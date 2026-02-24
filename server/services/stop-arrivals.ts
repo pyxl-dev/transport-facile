@@ -17,8 +17,18 @@ function gtfsTimeToTodaySeconds(gtfsTime: string): number {
 }
 
 function currentDaySeconds(): number {
-  const now = new Date()
-  return now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds()
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/Paris',
+    hour: 'numeric',
+    minute: 'numeric',
+    second: 'numeric',
+    hour12: false,
+  }).formatToParts(new Date())
+
+  const hours = Number(parts.find((p) => p.type === 'hour')!.value)
+  const minutes = Number(parts.find((p) => p.type === 'minute')!.value)
+  const seconds = Number(parts.find((p) => p.type === 'second')!.value)
+  return hours * 3600 + minutes * 60 + seconds
 }
 
 function resolveRouteType(gtfsType: number): 'tram' | 'bus' {
