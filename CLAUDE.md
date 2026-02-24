@@ -5,8 +5,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-pnpm dev              # Start server (tsx watch, port 3000) + client (Vite, port 5173)
+pnpm dev              # Start Express server (tsx watch, port 3000) + Vite client (port 5173)
 pnpm build            # TypeScript check + Vite build
+pnpm build:gtfs       # Build GTFS JSON data files into dist/data/ (for CF deployment)
+pnpm build:cf         # Full build (Vite + GTFS data) for deployment
+pnpm deploy:cf        # Build + deploy to Cloudflare Pages
 pnpm test             # Run all tests (vitest)
 pnpm test:watch       # Watch mode
 pnpm test:coverage    # Coverage report (v8)
@@ -17,15 +20,28 @@ pnpm vitest run server/__tests__/gtfs-static.test.ts
 
 ## Architecture
 
-Real-time TaM Montpellier transit map. Express backend proxies CORS-less TaM APIs; Vite + vanilla TypeScript + MapLibre GL JS frontend renders vehicles, routes, and stops on a map.
+Real-time TaM Montpellier transit map with two runtime environments:
 
-### Backend (`server/`)
+- **Local dev**: Express backend (Node.js) + Vite frontend (HMR)
+- **Production**: Cloudflare Pages Functions + static assets
+
+Both runtimes share services from `server/services/` and must stay in sync. The canonical prod implementation is `functions/api/[[catchall]].ts`. When adding features, implement in the CF handler first, then mirror to Express routes.
+
+### Backend — Production (`functions/api/`)
+
+**API handler** (`[[catchall]].ts`): single file handling all routes — `/api/vehicles`, `/api/lines`, `/api/stops`, `/api/route-paths`, `/api/trip-shapes`, `/api/stops/:id/arrivals`.
+
+**Data flow**: GTFS static data is pre-built at build time (`pnpm build:gtfs`) into JSON files in `dist/data/`. The CF function loads these as assets on demand and caches them in module scope.
+
+### Backend — Local Dev (`server/`)
 
 **Startup sequence** (`index.ts`): validate config (Zod) → fetch GTFS static ZIPs (urban + suburban) → fetch Overpass OSM routes → build route path polylines → create Express app → listen.
 
-**Routes**: `/api/vehicles` (real-time positions), `/api/lines`, `/api/stops` (bbox filtering), `/api/route-paths` (pre-computed at startup).
+**Routes**: `/api/vehicles`, `/api/lines`, `/api/stops` (bbox filtering), `/api/route-paths`, `/api/trip-shapes`, `/api/stops/:id/arrivals`.
 
-**Services**:
+### Shared Services (`server/services/`)
+
+Reusable modules imported by Express routes, CF functions, and build scripts:
 - `gtfs-realtime.ts` — decodes protobuf feeds via `gtfs-realtime-bindings`
 - `gtfs-static.ts` — parses GTFS ZIP/CSV (handles UTF-8 BOM), merges urban + suburban
 - `route-path-builder.ts` — builds polylines with priority: GTFS shapes → Overpass OSM → stop sequences
@@ -48,6 +64,9 @@ Real-time TaM Montpellier transit map. Express backend proxies CORS-less TaM API
 
 ## Key Gotchas
 
+- **Dual runtime**: Express (dev) and CF Workers (prod) must stay in sync. When modifying API logic, update BOTH `server/routes/` AND `functions/api/[[catchall]].ts`.
+- **Timezone**: Both runtimes use `Intl.DateTimeFormat` with `timeZone: 'Europe/Paris'` for GTFS schedule calculations. Never use raw `new Date().getHours()` — CF Workers run in UTC.
+- **workerd + WSL2**: `wrangler pages dev` has networking issues under WSL2 (port exhaustion on loopback). Use Express for local dev.
 - `gtfs-realtime-bindings` is CJS: `import GtfsRealtimeBindings from 'gtfs-realtime-bindings'` then `const { transit_realtime } = GtfsRealtimeBindings`. Timestamps can be Long objects — always use `Number()`.
 - MapLibre v4.7: symbol + circle layers on the **same GeoJSON source** causes circles to not render. Use separate sources or HTML markers.
 - MapLibre CSS: use `import 'maplibre-gl/dist/maplibre-gl.css'` (CDN import can be blocked by browser tracking prevention).
@@ -58,7 +77,7 @@ Real-time TaM Montpellier transit map. Express backend proxies CORS-less TaM API
 
 ## Test Patterns
 
-- Vitest with globals, v8 coverage, 115+ tests across 12 files
+- Vitest with globals, v8 coverage, 270+ tests across 21 files
 - DOM tests need `// @vitest-environment jsdom` comment at file top
 - API tests mock `globalThis.fetch`
 - `adm-zip` creates mock ZIP buffers in tests
