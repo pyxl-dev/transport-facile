@@ -3,6 +3,12 @@ export interface RefreshTimer {
   destroy(): void
 }
 
+function computeSecondsUntilNextTick(intervalMs: number): number {
+  const remainder = Date.now() % intervalMs
+  const msUntilNext = remainder === 0 ? intervalMs : intervalMs - remainder
+  return Math.ceil(msUntilNext / 1000)
+}
+
 export function createRefreshTimer(
   container: HTMLElement,
   intervalMs: number
@@ -13,7 +19,7 @@ export function createRefreshTimer(
   el.setAttribute('aria-live', 'polite')
   container.appendChild(el)
 
-  let secondsLeft = Math.round(intervalMs / 1000)
+  let secondsLeft = computeSecondsUntilNextTick(intervalMs)
   let tickId: ReturnType<typeof setInterval> | null = null
 
   function render(): void {
@@ -26,9 +32,7 @@ export function createRefreshTimer(
   function startTick(): void {
     stopTick()
     tickId = setInterval(() => {
-      if (secondsLeft > 0) {
-        secondsLeft = secondsLeft - 1
-      }
+      secondsLeft = computeSecondsUntilNextTick(intervalMs)
       render()
     }, 1000)
   }
@@ -42,7 +46,7 @@ export function createRefreshTimer(
 
   return {
     reset() {
-      secondsLeft = Math.round(intervalMs / 1000)
+      secondsLeft = computeSecondsUntilNextTick(intervalMs)
       render()
       el.classList.add('visible')
       startTick()

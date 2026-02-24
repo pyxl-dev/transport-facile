@@ -7,6 +7,7 @@ describe('createRefreshTimer', () => {
 
   beforeEach(() => {
     vi.useFakeTimers()
+    vi.setSystemTime(0)
     container = document.createElement('div')
     document.body.appendChild(container)
   })
@@ -57,25 +58,31 @@ describe('createRefreshTimer', () => {
     expect(el.textContent).toBe('Mise à jour dans 5s')
   })
 
-  it('shows loading text when countdown reaches 0', () => {
+  it('wraps countdown at interval boundary instead of reaching zero', () => {
     const timer = createRefreshTimer(container, 3_000)
     timer.reset()
     const el = container.querySelector('.last-updated')!
 
-    vi.advanceTimersByTime(3000)
-    expect(el.textContent).toBe('Mise à jour\u2026')
+    // At t=0: 3s, at t=1000: 2s, at t=2000: 1s
+    vi.advanceTimersByTime(2000)
+    expect(el.textContent).toBe('Mise à jour dans 1s')
+
+    // At t=3000 (boundary): wraps back to 3s
+    vi.advanceTimersByTime(1000)
+    expect(el.textContent).toBe('Mise à jour dans 3s')
   })
 
-  it('does not go below 0', () => {
+  it('wraps countdown correctly across multiple interval boundaries', () => {
     const timer = createRefreshTimer(container, 2_000)
     timer.reset()
     const el = container.querySelector('.last-updated')!
 
+    // At t=5000 with interval 2000: remainder=1000, 1s until next tick at t=6000
     vi.advanceTimersByTime(5000)
-    expect(el.textContent).toBe('Mise à jour\u2026')
+    expect(el.textContent).toBe('Mise à jour dans 1s')
   })
 
-  it('resets countdown on subsequent reset() calls', () => {
+  it('reset reflects wall-clock countdown, not fixed interval', () => {
     const timer = createRefreshTimer(container, 10_000)
     timer.reset()
     const el = container.querySelector('.last-updated')!
@@ -83,11 +90,13 @@ describe('createRefreshTimer', () => {
     vi.advanceTimersByTime(7000)
     expect(el.textContent).toBe('Mise à jour dans 3s')
 
+    // reset() at t=7000 still shows wall-clock value (3s, not 10s)
     timer.reset()
-    expect(el.textContent).toBe('Mise à jour dans 10s')
+    expect(el.textContent).toBe('Mise à jour dans 3s')
 
-    vi.advanceTimersByTime(2000)
-    expect(el.textContent).toBe('Mise à jour dans 8s')
+    // At t=10000 (boundary): wraps to 10s
+    vi.advanceTimersByTime(3000)
+    expect(el.textContent).toBe('Mise à jour dans 10s')
   })
 
   it('destroy() removes element and stops interval', () => {
@@ -102,5 +111,18 @@ describe('createRefreshTimer', () => {
     expect(container.querySelector('.last-updated')).toBeNull()
     // Advancing timers should not throw after destroy
     vi.advanceTimersByTime(5000)
+  })
+
+  it('countdown aligns to wall-clock intervals regardless of start time', () => {
+    vi.setSystemTime(4000)
+    const timer = createRefreshTimer(container, 10_000)
+    timer.reset()
+    const el = container.querySelector('.last-updated')!
+
+    // Next tick at t=10000, 6000ms away → 6s
+    expect(el.textContent).toBe('Mise à jour dans 6s')
+
+    vi.advanceTimersByTime(1000)
+    expect(el.textContent).toBe('Mise à jour dans 5s')
   })
 })

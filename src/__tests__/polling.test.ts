@@ -3,6 +3,7 @@ import { createPollingService } from '../services/polling'
 describe('createPollingService', () => {
   beforeEach(() => {
     vi.useFakeTimers()
+    vi.setSystemTime(0)
   })
 
   afterEach(() => {
@@ -116,6 +117,29 @@ describe('createPollingService', () => {
     service.start()
     expect(callback).toHaveBeenCalledTimes(2)
 
+    vi.advanceTimersByTime(5000)
+    expect(callback).toHaveBeenCalledTimes(3)
+
+    service.stop()
+  })
+
+  it('should align polling to wall-clock interval boundaries', () => {
+    vi.setSystemTime(2000)
+    const callback = vi.fn().mockResolvedValue(undefined)
+    const service = createPollingService(callback, 5000)
+
+    service.start()
+    expect(callback).toHaveBeenCalledTimes(1)
+
+    // Next tick at t=5000 (3000ms away) — 2999ms is still before boundary
+    vi.advanceTimersByTime(2999)
+    expect(callback).toHaveBeenCalledTimes(1)
+
+    // 1ms more reaches t=5000 boundary — callback fires
+    vi.advanceTimersByTime(1)
+    expect(callback).toHaveBeenCalledTimes(2)
+
+    // Next tick at t=10000, 5000ms away
     vi.advanceTimersByTime(5000)
     expect(callback).toHaveBeenCalledTimes(3)
 

@@ -7,11 +7,16 @@ export interface PollingService {
   forceRefresh(): void
 }
 
+function computeDelay(interval: number): number {
+  const remainder = Date.now() % interval
+  return remainder === 0 ? interval : interval - remainder
+}
+
 export function createPollingService(
   callback: () => Promise<void>,
   interval: number = POLLING_INTERVAL
 ): PollingService {
-  let timerId: ReturnType<typeof setInterval> | null = null
+  let timerId: ReturnType<typeof setTimeout> | null = null
   let running = false
 
   async function execute(): Promise<void> {
@@ -22,19 +27,27 @@ export function createPollingService(
     }
   }
 
+  function scheduleNext(): void {
+    timerId = setTimeout(() => {
+      if (!running) return
+      scheduleNext()
+      execute()
+    }, computeDelay(interval))
+  }
+
   return {
     start() {
       if (running) return
       running = true
       execute()
-      timerId = setInterval(execute, interval)
+      scheduleNext()
     },
 
     stop() {
       if (!running) return
       running = false
       if (timerId !== null) {
-        clearInterval(timerId)
+        clearTimeout(timerId)
         timerId = null
       }
     },
